@@ -536,7 +536,7 @@ async function sendTelegram() {
     const imgData = canvas.toDataURL("image/jpeg", 0.92);
     const { jsPDF } = window.jspdf;
 
-    const pageWidthMM = 210, pageHeightMM = 297, margin = 10;
+    const pageWidthMM = 210, pageHeightMM = 297, margin = 8;
     const maxW = pageWidthMM - margin * 2;
     const maxH = pageHeightMM - margin * 2;
     const contentAspect = canvas.height / canvas.width;
@@ -610,7 +610,7 @@ async function downloadPdf() {
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
     const { jsPDF } = window.jspdf;
 
-    const pageWidthMM = 210, pageHeightMM = 297, margin = 10; // A4 piawai, margin konsisten
+    const pageWidthMM = 210, pageHeightMM = 297, margin = 8; // A4 piawai, margin konsisten
     const maxW = pageWidthMM - margin * 2;
     const maxH = pageHeightMM - margin * 2;
     const contentAspect = canvas.height / canvas.width;
