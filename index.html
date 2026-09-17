@@ -423,7 +423,7 @@ function renderPreviewPhotos() {
     cell.style.cssText = `grid-row:${rs}/${re};grid-column:${cs}/${ce};position:relative;border-radius:8px;overflow:hidden;background:${cfg.tint};border:1px dashed ${cfg.color}55;display:flex;align-items:center;justify-content:center`;
     const badge = `<span style="position:absolute;top:5px;left:5px;background:${cfg.color};color:#fff;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:1">${i + 1}</span>`;
     if (photos[i]) {
-      cell.innerHTML = `${badge}<img src="${photos[i]}" style="width:100%;height:100%;object-fit:cover" />`;
+      cell.innerHTML = `${badge}<img src="${photos[i]}" style="width:100%;height:100%;object-fit:contain;background:#fff" />`;
     } else {
       cell.innerHTML = `${badge}<span style="color:${cfg.color}66;font-size:18px">🖼</span>`;
     }
@@ -532,19 +532,21 @@ async function sendTelegram() {
     const imgData = canvas.toDataURL("image/jpeg", 0.92);
     const { jsPDF } = window.jspdf;
 
-    const margin = 8;
-    const pageWidthMM = 210;
+    const pageWidthMM = 210, pageHeightMM = 297, margin = 10;
+    const maxW = pageWidthMM - margin * 2;
+    const maxH = pageHeightMM - margin * 2;
     const contentAspect = canvas.height / canvas.width;
-    const imgW = pageWidthMM - margin * 2;
+    let imgW = maxW;
     let imgH = imgW * contentAspect;
-    let pageHeightMM = imgH + margin * 2;
-    if (pageHeightMM > 297) {
-      pageHeightMM = 297;
-      imgH = pageHeightMM - margin * 2;
+    if (imgH > maxH) {
+      imgH = maxH;
+      imgW = imgH / contentAspect;
     }
+    const x = (pageWidthMM - imgW) / 2;
+    const y = margin;
 
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [pageWidthMM, pageHeightMM] });
-    pdf.addImage(imgData, "JPEG", margin, margin, imgW, imgH);
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    pdf.addImage(imgData, "JPEG", x, y, imgW, imgH);
     const pdfBase64 = pdf.output("datauristring").split(",")[1];
 
     await fetch(GAS_URL, {
@@ -556,7 +558,7 @@ async function sendTelegram() {
         unit: UNITS[currentUnit].label,
         tajuk: document.getElementById("f_tajuk").value || "(Tiada tajuk)",
         pdfBase64,
-        fileName: `Laporan_${UNITS[currentUnit].code}_${Date.now()}.pdf`,
+        fileName: buildFileName(),
       }),
     });
 
@@ -578,6 +580,23 @@ async function sendTelegram() {
   }
 }
 
+function slugifyFilename(str) {
+  if (!str) return "Tanpa_Tajuk";
+  return str
+    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9\s-]/g, "")
+    .trim().replace(/\s+/g, "_")
+    .substring(0, 40);
+}
+
+function buildFileName() {
+  const cfg = UNITS[currentUnit];
+  const tajuk = slugifyFilename(document.getElementById("f_tajuk").value);
+  const tarikhRaw = document.getElementById("f_tarikh").value; // YYYY-MM-DD
+  const tarikh = tarikhRaw ? tarikhRaw.replace(/-/g, "") : "TanpaTarikh";
+  return `Laporan_${cfg.code}_${tajuk}_${tarikh}.pdf`;
+}
+
 async function downloadPdf() {
   const btn = document.getElementById("btnDownload");
   btn.disabled = true;
@@ -587,22 +606,23 @@ async function downloadPdf() {
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
     const { jsPDF } = window.jspdf;
 
-    const margin = 8; // mm
-    const pageWidthMM = 210; // lebar A4 dikekalkan
+    const pageWidthMM = 210, pageHeightMM = 297, margin = 10; // A4 piawai, margin konsisten
+    const maxW = pageWidthMM - margin * 2;
+    const maxH = pageHeightMM - margin * 2;
     const contentAspect = canvas.height / canvas.width;
-    const imgW = pageWidthMM - margin * 2;
+
+    let imgW = maxW;
     let imgH = imgW * contentAspect;
-    let pageHeightMM = imgH + margin * 2;
-
-    // Kalau kandungan terlalu panjang (lebih dari 1 muka A4), skalakan supaya tetap muat 1 muka
-    if (pageHeightMM > 297) {
-      pageHeightMM = 297;
-      imgH = pageHeightMM - margin * 2;
+    if (imgH > maxH) {
+      imgH = maxH;
+      imgW = imgH / contentAspect;
     }
+    const x = (pageWidthMM - imgW) / 2;
+    const y = margin;
 
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: [pageWidthMM, pageHeightMM] });
-    pdf.addImage(imgData, "JPEG", margin, margin, imgW, imgH);
-    pdf.save(`Laporan_${UNITS[currentUnit].code}_${Date.now()}.pdf`);
+    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    pdf.addImage(imgData, "JPEG", x, y, imgW, imgH);
+    pdf.save(buildFileName());
   } catch (err) {
     showStatus(false, "Gagal jana PDF: " + err.message);
   } finally {
