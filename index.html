@@ -219,12 +219,12 @@
         <div id="previewPhotoGrid" style="display:grid;gap:8px"></div>
 
         <div style="margin-top:26px;display:flex;justify-content:center">
-          <div style="text-align:center">
+          <div style="text-align:center;max-width:90%">
             <div style="font-size:11.5px;color:#8a8a8a;margin-bottom:6px">Disediakan oleh,</div>
             <div id="sigSlot" style="height:44px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:4px"></div>
-            <div style="width:160px;border-top:1.5px solid #1a1a1a;padding-top:6px">
-              <div id="p_nama" style="font-size:13px;font-weight:700;font-family:'Libre Franklin',sans-serif">Nama Guru</div>
-              <div id="p_jawatan" style="font-size:11px;color:#8a8a8a">Jawatan</div>
+            <div style="width:fit-content;max-width:100%;margin:0 auto;border-top:1.5px solid #1a1a1a;padding-top:6px">
+              <div id="p_nama" style="font-size:13px;font-weight:700;font-family:'Libre Franklin',sans-serif;white-space:nowrap">Nama Guru</div>
+              <div id="p_jawatan" style="font-size:11px;color:#8a8a8a;white-space:nowrap">Jawatan</div>
             </div>
           </div>
         </div>
@@ -508,6 +508,7 @@ async function janaAI(btn) {
         sasaran: document.getElementById("f_sasaran").value,
         anjuran: document.getElementById("f_anjuran").value,
         maklumatTambahan: document.getElementById("f_extra").value,
+        extraLabel: UNITS[currentUnit].extraLabel,
       }),
     });
     const data = await res.json();
