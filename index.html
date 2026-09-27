@@ -133,24 +133,31 @@
 
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-            <label class="field-label" style="margin-bottom:0">Deskripsi / Pengenalan</label>
-            <button class="ai-btn" data-field="deskripsi" onclick="janaAI(this)">✨ Jana AI</button>
+            <label class="field-label" style="margin-bottom:0">Aktiviti</label>
+            <button class="ai-btn" data-field="aktiviti" onclick="janaAI(this)">✨ Jana AI</button>
           </div>
-          <textarea id="f_deskripsi" placeholder="Tulis point ringkas, atau guna Jana AI"></textarea>
+          <textarea id="f_aktiviti" placeholder="Apa yang berlaku/dilaksanakan — tulis point ringkas, atau guna Jana AI"></textarea>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-            <label class="field-label" style="margin-bottom:0">Fokus / Isu Keberkesanan</label>
-            <button class="ai-btn" data-field="fokus" onclick="janaAI(this)">✨ Jana AI</button>
+            <label class="field-label" style="margin-bottom:0">Kekuatan</label>
+            <button class="ai-btn" data-field="kekuatan" onclick="janaAI(this)">✨ Jana AI</button>
           </div>
-          <textarea id="f_fokus" placeholder="Tulis point ringkas, atau guna Jana AI"></textarea>
+          <textarea id="f_kekuatan" placeholder="Apa yang berjalan lancar/berkesan — tulis point ringkas, atau guna Jana AI"></textarea>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
-            <label class="field-label" style="margin-bottom:0">Ulasan Guru / Impak</label>
-            <button class="ai-btn" data-field="ulasan" onclick="janaAI(this)">✨ Jana AI</button>
+            <label class="field-label" style="margin-bottom:0">Cabaran / Isu</label>
+            <button class="ai-btn" data-field="cabaran" onclick="janaAI(this)">✨ Jana AI</button>
           </div>
-          <textarea id="f_ulasan" placeholder="Tulis point ringkas, atau guna Jana AI"></textarea>
+          <textarea id="f_cabaran" placeholder="Masalah/halangan yang dihadapi — tulis point ringkas, atau guna Jana AI"></textarea>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <label class="field-label" style="margin-bottom:0">Penambahbaikan / Cadangan</label>
+            <button class="ai-btn" data-field="penambahbaikan" onclick="janaAI(this)">✨ Jana AI</button>
+          </div>
+          <textarea id="f_penambahbaikan" placeholder="Apa yang boleh diperbaiki untuk masa depan — tulis point ringkas, atau guna Jana AI"></textarea>
         </div>
 
         <div>
@@ -206,14 +213,17 @@
 
         <div id="infoRows"></div>
 
-        <div class="ribbon-divider"><div class="line"></div><div class="tag" id="tagDeskripsi">Deskripsi / Pengenalan</div></div>
-        <p id="p_deskripsi" style="font-size:13px;line-height:1.7;color:#3a3a3a;margin:0">Huraian ringkas tentang program akan dipaparkan di sini.</p>
+        <div class="ribbon-divider"><div class="line"></div><div class="tag" id="tagAktiviti">Aktiviti</div></div>
+        <p id="p_aktiviti" style="font-size:13px;line-height:1.7;color:#3a3a3a;margin:0">Huraian ringkas tentang aktiviti akan dipaparkan di sini.</p>
 
-        <div class="ribbon-divider"><div class="line"></div><div class="tag" id="tagFokus">Fokus / Isu Keberkesanan</div></div>
-        <p id="p_fokus" style="font-size:13px;line-height:1.7;color:#3a3a3a;margin:0">Fokus dan keberkesanan aktiviti akan dipaparkan di sini.</p>
+        <div class="ribbon-divider"><div class="line"></div><div class="tag" id="tagKekuatan">Kekuatan</div></div>
+        <p id="p_kekuatan" style="font-size:13px;line-height:1.7;color:#3a3a3a;margin:0">Kekuatan program akan dipaparkan di sini.</p>
 
-        <div class="ribbon-divider"><div class="line"></div><div class="tag" id="tagUlasan">Ulasan Guru / Impak</div></div>
-        <p id="p_ulasan" style="font-size:13px;line-height:1.7;color:#3a3a3a;margin:0">Ulasan dan impak program akan dipaparkan di sini.</p>
+        <div class="ribbon-divider"><div class="line"></div><div class="tag" id="tagCabaran">Cabaran / Isu</div></div>
+        <p id="p_cabaran" style="font-size:13px;line-height:1.7;color:#3a3a3a;margin:0">Cabaran/isu yang dihadapi akan dipaparkan di sini.</p>
+
+        <div class="ribbon-divider"><div class="line"></div><div class="tag" id="tagPenambahbaikan">Penambahbaikan / Cadangan</div></div>
+        <p id="p_penambahbaikan" style="font-size:13px;line-height:1.7;color:#3a3a3a;margin:0">Cadangan penambahbaikan akan dipaparkan di sini.</p>
 
         <div class="ribbon-divider"><div class="line"></div><div class="tag" id="tagGambar">Gambar Aktiviti</div></div>
         <div id="previewPhotoGrid" style="display:grid;gap:8px"></div>
@@ -255,7 +265,7 @@ let currentUnit = "kurikulum";
 let photos = [];
 let signatureImg = null;
 
-const fieldIds = ["tajuk","tarikh","masa","tempat","sasaran","anjuran","extra","deskripsi","fokus","ulasan","nama","jawatan"];
+const fieldIds = ["tajuk","tarikh","masa","tempat","sasaran","anjuran","extra","aktiviti","kekuatan","cabaran","penambahbaikan","nama","jawatan"];
 
 function renderUnitTabs() {
   const wrap = document.getElementById("unitTabs");
@@ -340,14 +350,17 @@ function render() {
       <span class="info-value">${val ? val : '<span style="color:#c7c4b8">—</span>'}</span>
     </div>`).join("");
 
-  ["deskripsi","fokus","ulasan"].forEach(f => {
-    document.getElementById("p_" + f).textContent = document.getElementById("f_" + f).value ||
-      (f === "deskripsi" ? "Huraian ringkas tentang program akan dipaparkan di sini." :
-       f === "fokus" ? "Fokus dan keberkesanan aktiviti akan dipaparkan di sini." :
-       "Ulasan dan impak program akan dipaparkan di sini.");
+  const defaultText = {
+    aktiviti: "Huraian ringkas tentang aktiviti akan dipaparkan di sini.",
+    kekuatan: "Kekuatan program akan dipaparkan di sini.",
+    cabaran: "Cabaran/isu yang dihadapi akan dipaparkan di sini.",
+    penambahbaikan: "Cadangan penambahbaikan akan dipaparkan di sini.",
+  };
+  ["aktiviti","kekuatan","cabaran","penambahbaikan"].forEach(f => {
+    document.getElementById("p_" + f).textContent = document.getElementById("f_" + f).value || defaultText[f];
   });
 
-  ["tagDeskripsi","tagFokus","tagUlasan","tagGambar"].forEach(id => {
+  ["tagAktiviti","tagKekuatan","tagCabaran","tagPenambahbaikan","tagGambar"].forEach(id => {
     document.getElementById(id).style.background = cfg.color;
   });
   document.getElementById("tagGambar").textContent = `Gambar Aktiviti (${cfg.photoSlots})`;
