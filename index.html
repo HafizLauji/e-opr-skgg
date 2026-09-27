@@ -412,37 +412,30 @@ function renderPhotoGrid() {
   }
 }
 
-const PHOTO_LAYOUTS = {
-  2: { cols: "1fr 1fr", rows: "1fr", height: "200px",
-       areas: [ [1,2,1,2], [1,2,2,3] ] }, // [rowStart,rowEnd,colStart,colEnd]
-  3: { cols: "1.3fr 1fr", rows: "1fr 1fr", height: "280px",
-       areas: [ [1,3,1,2], [1,2,2,3], [2,3,2,3] ] },
-  4: { cols: "1.3fr 1fr", rows: "1fr 1fr 1fr", height: "320px",
-       areas: [ [1,4,1,2], [1,2,2,3], [2,3,2,3], [3,4,2,3] ] },
-};
-
 function renderPreviewPhotos() {
   const cfg = UNITS[currentUnit];
-  const layout = PHOTO_LAYOUTS[cfg.photoSlots] || PHOTO_LAYOUTS[4];
   const grid = document.getElementById("previewPhotoGrid");
-  grid.style.gridTemplateColumns = layout.cols;
-  grid.style.gridTemplateRows = layout.rows;
-  grid.style.height = layout.height;
-  grid.style.gap = "6px";
+  grid.style.gridTemplateColumns = "repeat(2, 1fr)";
+  grid.style.gridTemplateRows = "";
+  grid.style.height = "";
+  grid.style.gap = "8px";
   grid.innerHTML = "";
+
   for (let i = 0; i < cfg.photoSlots; i++) {
-    const [rs, re, cs, ce] = layout.areas[i];
+    // Kalau bilangan gambar 3, gambar terakhir dibuat banner mendatar penuh lebar
+    // (bentuk landskap sepadan dengan gambar telefon, elak ruang kosong berlebihan)
+    const isBanner = cfg.photoSlots === 3 && i === 2;
     const cell = document.createElement("div");
-    cell.style.cssText = `grid-row:${rs}/${re};grid-column:${cs}/${ce};position:relative;border-radius:8px;overflow:hidden;background:${cfg.tint};border:1px dashed ${cfg.color}55;display:flex;align-items:center;justify-content:center`;
+    cell.style.cssText = `position:relative;border-radius:8px;overflow:hidden;background:${cfg.tint};border:1px dashed ${cfg.color}55;aspect-ratio:${isBanner ? "3/1" : "4/3"};${isBanner ? "grid-column:1/-1;" : ""}`;
     const badge = `<span style="position:absolute;top:5px;left:5px;background:${cfg.color};color:#fff;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:1">${i + 1}</span>`;
     if (photos[i]) {
       cell.innerHTML = badge;
       cell.style.backgroundImage = `url(${photos[i]})`;
-      cell.style.backgroundSize = "contain";
+      cell.style.backgroundSize = "cover";
       cell.style.backgroundRepeat = "no-repeat";
       cell.style.backgroundPosition = "center";
     } else {
-      cell.innerHTML = `${badge}<span style="color:${cfg.color}66;font-size:18px">🖼</span>`;
+      cell.innerHTML = `${badge}<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:${cfg.color}66;font-size:18px">🖼</div>`;
     }
     grid.appendChild(cell);
   }
