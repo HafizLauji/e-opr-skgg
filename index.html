@@ -543,18 +543,16 @@ async function sendTelegram() {
     const imgData = canvas.toDataURL("image/jpeg", 0.92);
     const { jsPDF } = window.jspdf;
 
-    const pageWidthMM = 210, pageHeightMM = 297, margin = 8;
-    const maxW = pageWidthMM - margin * 2;
-    const maxH = pageHeightMM - margin * 2;
+    const pageWidthMM = 210, pageHeightMM = 297;
     const contentAspect = canvas.height / canvas.width;
-    let imgW = maxW;
+    let imgW = pageWidthMM;
     let imgH = imgW * contentAspect;
-    if (imgH > maxH) {
-      imgH = maxH;
+    if (imgH < pageHeightMM) {
+      imgH = pageHeightMM;
       imgW = imgH / contentAspect;
     }
     const x = (pageWidthMM - imgW) / 2;
-    const y = margin;
+    const y = (pageHeightMM - imgH) / 2;
 
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     pdf.addImage(imgData, "JPEG", x, y, imgW, imgH);
@@ -617,19 +615,19 @@ async function downloadPdf() {
     const imgData = canvas.toDataURL("image/jpeg", 0.95);
     const { jsPDF } = window.jspdf;
 
-    const pageWidthMM = 210, pageHeightMM = 297, margin = 8; // A4 piawai, margin konsisten
-    const maxW = pageWidthMM - margin * 2;
-    const maxH = pageHeightMM - margin * 2;
+    const pageWidthMM = 210, pageHeightMM = 297; // A4 penuh, tiada border (full-bleed)
     const contentAspect = canvas.height / canvas.width;
 
-    let imgW = maxW;
+    // "Cover" fill: skalakan supaya isi PENUH lebar & tinggi A4, lebihan
+    // akan automatik terpotong oleh sempadan muka surat PDF (bukan diregangkan).
+    let imgW = pageWidthMM;
     let imgH = imgW * contentAspect;
-    if (imgH > maxH) {
-      imgH = maxH;
+    if (imgH < pageHeightMM) {
+      imgH = pageHeightMM;
       imgW = imgH / contentAspect;
     }
     const x = (pageWidthMM - imgW) / 2;
-    const y = margin;
+    const y = (pageHeightMM - imgH) / 2;
 
     const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     pdf.addImage(imgData, "JPEG", x, y, imgW, imgH);
