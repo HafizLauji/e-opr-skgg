@@ -91,6 +91,19 @@
   .report-footer { color: #fff; text-align: center; font-family: 'Libre Franklin', sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding: 8px 0; }
   .ref-tag { flex-shrink: 0; background: #fff; min-width: 68px; text-align: center; padding: 9px 12px 15px; clip-path: polygon(0 0, 100% 0, 100% 76%, 50% 100%, 0 76%); box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
   .no-print-note { margin-top: 10px; font-size: 11px; color: #9a9890; text-align: center; }
+
+  /* ===== Layout A4 tetap — hanya aktif dalam salinan semasa jana PDF ===== */
+  body.print-mode { margin: 0; background: #fff; }
+  body.print-mode .report-card { width: 794px; height: 1123px; max-width: none; margin: 0; border: none; border-radius: 0; box-shadow: none; display: flex; flex-direction: column; }
+  body.print-mode .report-header { flex: 0 0 auto; padding: 24px 34px; border-radius: 0; }
+  body.print-mode .report-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 22px 34px 18px; }
+  body.print-mode .report-body > * { flex-shrink: 0; }
+  body.print-mode .report-footer { flex: 0 0 auto; padding: 10px 0; border-radius: 0; }
+  body.print-mode .report-body p { font-size: calc(13px * var(--k, 1)) !important; line-height: 1.6 !important; }
+  body.print-mode .ribbon-divider { margin: calc(20px * var(--k, 1)) 0 calc(14px * var(--k, 1)); }
+  body.print-mode .info-label { width: 170px; }
+  body.print-mode .report-body > .photo-area { flex: 1 1 0; }
+  body.print-mode .sig-wrap { margin-top: auto !important; padding-top: 14px; }
   @media print {
     .no-print { display: none !important; }
     .main-grid { grid-template-columns: 1fr !important; }
@@ -228,7 +241,7 @@
         <div class="ribbon-divider"><div class="line"></div><div class="tag" id="tagGambar">Gambar Aktiviti</div></div>
         <div id="previewPhotoGrid" style="display:grid;gap:8px"></div>
 
-        <div style="margin-top:26px;display:flex;justify-content:center">
+        <div class="sig-wrap" style="margin-top:26px;display:flex;justify-content:center">
           <div style="text-align:center;max-width:90%">
             <div style="font-size:11.5px;color:#8a8a8a;margin-bottom:6px">Disediakan oleh,</div>
             <div id="sigSlot" style="height:44px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:4px"></div>
@@ -532,6 +545,47 @@ async function janaAI(btn) {
   }
 }
 
+// Jana canvas dalam layout A4 TETAP (794x1123px) tak kira saiz skrin peranti.
+// Ruang gambar mengembang/mengecut isi baki ruang; kalau teks panjang, saiz teks dikecilkan
+// automatik sampai muat 1 muka. Hasil: penuh A4, tiada potongan, tiada border, tiada herot.
+async function renderA4Canvas() {
+  const cfg = UNITS[currentUnit];
+  const rows = cfg.photoSlots <= 2 ? 1 : 2;
+  return await html2canvas(document.getElementById("reportCard"), {
+    scale: 2, useCORS: true, backgroundColor: "#ffffff",
+    windowWidth: 794, windowHeight: 1123, scrollX: 0, scrollY: 0,
+    onclone: (doc) => {
+      const card = doc.getElementById("reportCard");
+      doc.body.innerHTML = "";
+      doc.body.className = "print-mode";
+      doc.body.appendChild(card);
+
+      const body = card.querySelector(".report-body");
+      const grid = card.querySelector("#previewPhotoGrid");
+      grid.classList.add("photo-area");
+      grid.style.gridTemplateRows = "repeat(" + rows + ", 1fr)";
+      grid.style.minHeight = (rows * 100) + "px";
+      grid.style.maxHeight = (rows * 250 + (rows - 1) * 8) + "px";
+      Array.from(grid.children).forEach(c => { c.style.aspectRatio = "auto"; });
+
+      // Kecilkan teks sedikit demi sedikit kalau kandungan melebihi 1 muka A4
+      let k = 1;
+      card.style.setProperty("--k", k);
+      while (body.scrollHeight > body.clientHeight - 6 && k > 0.7) {
+        k -= 0.04;
+        card.style.setProperty("--k", k.toFixed(2));
+      }
+    },
+  });
+}
+
+function canvasToA4Pdf(canvas, quality) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  pdf.addImage(canvas.toDataURL("image/jpeg", quality), "JPEG", 0, 0, 210, 297);
+  return pdf;
+}
+
 async function sendTelegram() {
   const btn = document.getElementById("btnTelegram");
   btn.disabled = true;
@@ -539,23 +593,8 @@ async function sendTelegram() {
   showStatus(true, "Menjana PDF & menghantar...");
 
   try {
-    const canvas = await html2canvas(document.getElementById("reportCard"), { scale: 2, useCORS: true });
-    const imgData = canvas.toDataURL("image/jpeg", 0.92);
-    const { jsPDF } = window.jspdf;
-
-    const pageWidthMM = 210, pageHeightMM = 297;
-    const contentAspect = canvas.height / canvas.width;
-    let imgW = pageWidthMM;
-    let imgH = imgW * contentAspect;
-    if (imgH < pageHeightMM) {
-      imgH = pageHeightMM;
-      imgW = imgH / contentAspect;
-    }
-    const x = (pageWidthMM - imgW) / 2;
-    const y = (pageHeightMM - imgH) / 2;
-
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    pdf.addImage(imgData, "JPEG", x, y, imgW, imgH);
+    const canvas = await renderA4Canvas();
+    const pdf = canvasToA4Pdf(canvas, 0.92);
     const pdfBase64 = pdf.output("datauristring").split(",")[1];
 
     await fetch(GAS_URL, {
@@ -611,27 +650,8 @@ async function downloadPdf() {
   btn.disabled = true;
   btn.textContent = "Menjana PDF...";
   try {
-    const canvas = await html2canvas(document.getElementById("reportCard"), { scale: 2, useCORS: true });
-    const imgData = canvas.toDataURL("image/jpeg", 0.95);
-    const { jsPDF } = window.jspdf;
-
-    const pageWidthMM = 210, pageHeightMM = 297; // A4 penuh, tiada border (full-bleed)
-    const contentAspect = canvas.height / canvas.width;
-
-    // "Cover" fill: skalakan supaya isi PENUH lebar & tinggi A4, lebihan
-    // akan automatik terpotong oleh sempadan muka surat PDF (bukan diregangkan).
-    let imgW = pageWidthMM;
-    let imgH = imgW * contentAspect;
-    if (imgH < pageHeightMM) {
-      imgH = pageHeightMM;
-      imgW = imgH / contentAspect;
-    }
-    const x = (pageWidthMM - imgW) / 2;
-    const y = (pageHeightMM - imgH) / 2;
-
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-    pdf.addImage(imgData, "JPEG", x, y, imgW, imgH);
-    pdf.save(buildFileName());
+    const canvas = await renderA4Canvas();
+    canvasToA4Pdf(canvas, 0.95).save(buildFileName());
   } catch (err) {
     showStatus(false, "Gagal jana PDF: " + err.message);
   } finally {
