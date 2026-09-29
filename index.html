@@ -78,6 +78,7 @@
   .report-card { background: #fff; border-radius: 14px; box-shadow: 0 8px 30px rgba(13,43,78,0.14); overflow: hidden; border: 1px solid #ece9e0; max-width: 760px; margin: 0 auto; }
   .report-header { padding: 20px 26px; position: relative; overflow: hidden; }
   .report-body { padding: 24px 26px 28px; }
+  .report-body p { max-width: 640px; text-align: justify; text-align-last: left; }
   .info-row { display: flex; border-bottom: 1px solid #eceae2; padding: 7px 0; }
   .info-label { width: 110px; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8a8a8a; text-transform: uppercase; letter-spacing: 0.5px; padding-top: 2px; }
   .info-value { font-family: 'Inter', sans-serif; font-size: 13.5px; color: #1a1a1a; font-weight: 500; }
@@ -528,6 +529,9 @@ async function janaAI(btn) {
         anjuran: document.getElementById("f_anjuran").value,
         maklumatTambahan: document.getElementById("f_extra").value,
         extraLabel: UNITS[currentUnit].extraLabel,
+        bahagianLain: ["aktiviti","kekuatan","cabaran","penambahbaikan"]
+          .filter(f => f !== field)
+          .reduce((o, f) => { const v = document.getElementById("f_" + f).value.trim(); if (v) o[f] = v; return o; }, {}),
       }),
     });
     const data = await res.json();
@@ -561,6 +565,10 @@ async function renderA4Canvas() {
       doc.body.appendChild(card);
 
       const body = card.querySelector(".report-body");
+      card.querySelectorAll(".info-row").forEach(r => {
+        const v = r.querySelector(".info-value");
+        if (v && v.textContent.trim() === "\u2014") r.remove();
+      });
       const grid = card.querySelector("#previewPhotoGrid");
       grid.classList.add("photo-area");
       grid.style.gridTemplateRows = "repeat(" + rows + ", 1fr)";
