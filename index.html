@@ -103,7 +103,7 @@
   body.print-mode .report-body p { font-size: calc(13px * var(--k, 1)) !important; line-height: 1.6 !important; }
   body.print-mode .ribbon-divider { margin: 20px 0 14px; }
   body.print-mode .info-label { width: 170px; }
-  body.print-mode .report-body > .photo-area { flex: 1 1 0; }
+  body.print-mode .report-body > .photo-area { flex: 0 0 auto; }
   body.print-mode .sig-wrap { margin-top: auto !important; padding-top: 14px; }
   @media print {
     .no-print { display: none !important; }
@@ -572,8 +572,7 @@ async function renderA4Canvas() {
       const grid = card.querySelector("#previewPhotoGrid");
       grid.classList.add("photo-area");
       grid.style.gridTemplateRows = "repeat(" + rows + ", 1fr)";
-      grid.style.minHeight = (rows * 100) + "px";
-      grid.style.maxHeight = (rows * 250 + (rows - 1) * 8) + "px";
+      grid.style.height = (rows * 115 + (rows - 1) * 8) + "px";
       Array.from(grid.children).forEach(c => { c.style.aspectRatio = "auto"; });
 
       // Kecilkan teks sedikit demi sedikit kalau kandungan melebihi 1 muka A4
