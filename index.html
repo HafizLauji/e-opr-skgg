@@ -109,12 +109,12 @@
   body.print-mode .report-body > * { flex-shrink: 0; }
   body.print-mode .report-footer { flex: 0 0 auto; padding: 10px 0; border-radius: 0; }
 
-  /* Teks skala ikut --k, minimum lebih tinggi (kurang agresif) */
+  /* Teks lebih besar, scale hanya bila benar-benar perlu */
   body.print-mode .report-body p {
-    font-size: calc(13px * var(--k, 1)) !important;
+    font-size: calc(14px * var(--k, 1)) !important;
     line-height: 1.55 !important;
   }
-  body.print-mode .ribbon-divider { margin: calc(16px * var(--k, 1)) 0 calc(12px * var(--k, 1)); }
+  body.print-mode .ribbon-divider { margin: calc(14px * var(--k, 1)) 0 calc(10px * var(--k, 1)); }
   body.print-mode .info-label { width: 170px; }
 
   /* Foto: boleh mengembang isi baki ruang */
@@ -459,11 +459,18 @@ function renderPreviewPhotos() {
   grid.innerHTML = "";
 
   for (let i = 0; i < cfg.photoSlots; i++) {
-    // Kalau bilangan gambar 3, gambar terakhir dibuat banner mendatar penuh lebar
-    // (bentuk landskap sepadan dengan gambar telefon, elak ruang kosong berlebihan)
-    const isBanner = cfg.photoSlots === 3 && i === 2;
+    // 3 gambar: foto ke-3 di baris kedua, saiz sama (50% width, center) — elak banner terlalu lebar
+    const isThirdOfThree = cfg.photoSlots === 3 && i === 2;
     const cell = document.createElement("div");
-    cell.style.cssText = `position:relative;border-radius:8px;overflow:hidden;background:${cfg.tint};border:1px dashed ${cfg.color}55;aspect-ratio:${isBanner ? "3/1" : "4/3"};${isBanner ? "grid-column:1/-1;" : ""}`;
+    cell.style.cssText = [
+      "position:relative",
+      "border-radius:8px",
+      "overflow:hidden",
+      `background:${cfg.tint}`,
+      `border:1px dashed ${cfg.color}55`,
+      "aspect-ratio:4/3",
+      isThirdOfThree ? "grid-column:1/-1;width:50%;justify-self:center" : "",
+    ].filter(Boolean).join(";");
     const badge = `<span style="position:absolute;top:5px;left:5px;background:${cfg.color};color:#fff;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:1">${i + 1}</span>`;
     if (photos[i]) {
       cell.innerHTML = badge;
@@ -578,6 +585,7 @@ async function janaAI(btn) {
 async function renderA4Canvas() {
   const cfg = UNITS[currentUnit];
   const rows = cfg.photoSlots <= 2 ? 1 : 2;
+  const isThree = cfg.photoSlots === 3;
 
   return await html2canvas(document.getElementById("reportCard"), {
     scale: 2,
@@ -604,25 +612,33 @@ async function renderA4Canvas() {
       const grid = card.querySelector("#previewPhotoGrid");
       grid.classList.add("photo-area");
 
-      // ——— Setup grid foto: lebih besar + fleksibel ———
+      // ——— Grid foto: seimbang, jangan dominan atas teks ———
+      // min/max lebih sederhana supaya teks kekal besar
       grid.style.display = "grid";
       grid.style.gridTemplateColumns = "repeat(2, 1fr)";
       grid.style.gridTemplateRows = "repeat(" + rows + ", 1fr)";
       grid.style.gap = "10px";
-      grid.style.flex = "1 1 auto";
-      grid.style.minHeight = (rows * 155) + "px";   // naik dari 115 → 155
-      grid.style.maxHeight = (rows * 220) + "px";   // had supaya tak melampau
-      grid.style.height = "auto";
+      grid.style.flex = "0 0 auto";          // jangan paksa expand besar
+      grid.style.minHeight = (rows * 130) + "px";
+      grid.style.maxHeight = (rows * 170) + "px";
+      grid.style.height = (rows * 150) + "px"; // saiz tetap sederhana
       grid.style.alignSelf = "stretch";
 
-      // ——— Improve crop: tukar background-image → <img object-fit:cover> ———
-      Array.from(grid.children).forEach((c) => {
+      // ——— Setiap cell + crop lebih baik ———
+      Array.from(grid.children).forEach((c, idx) => {
         c.style.aspectRatio = "auto";
         c.style.height = "100%";
         c.style.minHeight = "0";
         c.style.overflow = "hidden";
         c.style.borderRadius = "6px";
         c.style.position = "relative";
+
+        // 3 foto: foto ke-3 center, lebar 50% (saiz sama dengan foto atas)
+        if (isThree && idx === 2) {
+          c.style.gridColumn = "1 / -1";
+          c.style.width = "50%";
+          c.style.justifySelf = "center";
+        }
 
         const bg = c.style.backgroundImage;
         if (bg && bg !== "none") {
@@ -635,8 +651,9 @@ async function renderA4Canvas() {
 
             const img = doc.createElement("img");
             img.src = m[1];
+            // cover + position center — elak crop siling berlebihan bila boleh
             img.style.cssText =
-              "width:100%;height:100%;object-fit:cover;object-position:center center;display:block;";
+              "width:100%;height:100%;object-fit:cover;object-position:center 40%;display:block;";
             c.appendChild(img);
           }
         }
@@ -647,34 +664,36 @@ async function renderA4Canvas() {
       if (sigWrap) {
         sigWrap.style.marginTop = "auto";
         sigWrap.style.flexShrink = "0";
-        sigWrap.style.paddingTop = "16px";
+        sigWrap.style.paddingTop = "18px";
       }
 
-      // ——— Auto-scale font: kurang agresif ———
-      // 1) Scale perlahan sampai 0.82
-      // 2) Kalau masih overflow → kecilkan min-height foto
-      // 3) Last resort scale sampai 0.74 sahaja
+      // ——— Auto-scale: utamakan teks besar ———
+      // Scale hanya bila overflow, minimum 0.86 (hampir tak mengecil)
       let k = 1;
       card.style.setProperty("--k", "1");
       void body.offsetHeight;
 
-      while (body.scrollHeight > body.clientHeight - 4 && k > 0.82) {
+      while (body.scrollHeight > body.clientHeight - 4 && k > 0.86) {
         k = Math.round((k - 0.02) * 100) / 100;
         card.style.setProperty("--k", String(k));
         void body.offsetHeight;
       }
 
+      // Kalau masih overflow, kecilkan tinggi foto dulu (bukan teks)
       if (body.scrollHeight > body.clientHeight - 4) {
-        let minH = rows * 155;
-        const floor = rows * 120;
-        while (body.scrollHeight > body.clientHeight - 4 && minH > floor) {
-          minH -= 8;
-          grid.style.minHeight = minH + "px";
+        let h = rows * 150;
+        const floor = rows * 110;
+        while (body.scrollHeight > body.clientHeight - 4 && h > floor) {
+          h -= 8;
+          grid.style.height = h + "px";
+          grid.style.minHeight = h + "px";
+          grid.style.maxHeight = h + "px";
           void body.offsetHeight;
         }
       }
 
-      while (body.scrollHeight > body.clientHeight - 4 && k > 0.74) {
+      // Last resort sahaja — minimum 0.80
+      while (body.scrollHeight > body.clientHeight - 4 && k > 0.80) {
         k = Math.round((k - 0.015) * 1000) / 1000;
         card.style.setProperty("--k", String(k));
         void body.offsetHeight;
