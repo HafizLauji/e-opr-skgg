@@ -100,36 +100,42 @@
     border: none; border-radius: 0; box-shadow: none;
     display: flex; flex-direction: column;
   }
-  body.print-mode .report-header { flex: 0 0 auto; padding: 22px 34px; border-radius: 0; }
+  body.print-mode .report-header { flex: 0 0 auto; padding: 20px 32px; border-radius: 0; }
   body.print-mode .report-body {
     flex: 1 1 auto; min-height: 0;
     display: flex; flex-direction: column;
-    padding: 20px 34px 14px;
+    justify-content: flex-start;
+    padding: 18px 32px 12px;
   }
-  body.print-mode .report-body > * { flex-shrink: 0; }
-  body.print-mode .report-footer { flex: 0 0 auto; padding: 10px 0; border-radius: 0; }
+  body.print-mode .report-body > * { flex: 0 0 auto; }
+  body.print-mode .report-footer { flex: 0 0 auto; padding: 9px 0; border-radius: 0; }
 
-  /* Teks lebih besar + penuh lebar (buang max-width 640 yang buat nampak ke kiri) */
+  /* Teks BESAR + penuh lebar */
   body.print-mode .report-body p {
-    font-size: calc(15px * var(--k, 1)) !important;
-    line-height: 1.55 !important;
+    font-size: calc(16px * var(--k, 1)) !important;
+    line-height: 1.5 !important;
     max-width: none !important;
+    width: 100% !important;
     text-align: justify !important;
+    margin: 0 !important;
   }
-  body.print-mode .ribbon-divider { margin: calc(13px * var(--k, 1)) 0 calc(9px * var(--k, 1)); }
-  body.print-mode .info-label { width: 160px; }
-  body.print-mode .info-value { font-size: 14px !important; }
-  body.print-mode #p_tajuk { font-size: 18px !important; }
+  body.print-mode .ribbon-divider {
+    margin: calc(12px * var(--k, 1)) 0 calc(8px * var(--k, 1)) !important;
+  }
+  body.print-mode .info-label { width: 155px; font-size: 11px !important; }
+  body.print-mode .info-value { font-size: 14.5px !important; }
+  body.print-mode .info-row { padding: 6px 0 !important; }
+  body.print-mode #p_tajuk { font-size: 19px !important; margin-bottom: 12px !important; }
 
-  /* Foto: boleh mengembang isi baki ruang */
+  /* Foto & signature — tiada auto-margin, tiada flex grow */
   body.print-mode .report-body > .photo-area {
-    flex: 0 0 auto;
+    flex: 0 0 auto !important;
     align-self: stretch;
   }
   body.print-mode .sig-wrap {
-    margin-top: 18px !important;
-    padding-top: 0;
-    flex-shrink: 0 !important;
+    margin-top: 16px !important;
+    padding-top: 0 !important;
+    flex: 0 0 auto !important;
   }
   @media print {
     .no-print { display: none !important; }
@@ -587,8 +593,9 @@ async function janaAI(btn) {
 // automatik sampai muat 1 muka. Hasil: penuh A4, tiada potongan, tiada border, tiada herot.
 async function renderA4Canvas() {
   const cfg = UNITS[currentUnit];
-  const rows = cfg.photoSlots <= 2 ? 1 : 2;
-  const isThree = cfg.photoSlots === 3;
+  const slots = cfg.photoSlots;
+  const rows = slots <= 2 ? 1 : 2;
+  const isThree = slots === 3;
 
   return await html2canvas(document.getElementById("reportCard"), {
     scale: 2,
@@ -605,6 +612,7 @@ async function renderA4Canvas() {
       doc.body.appendChild(card);
 
       const body = card.querySelector(".report-body");
+      body.style.justifyContent = "flex-start";
 
       // Buang baris info kosong
       card.querySelectorAll(".info-row").forEach(r => {
@@ -612,7 +620,7 @@ async function renderA4Canvas() {
         if (v && v.textContent.trim() === "\u2014") r.remove();
       });
 
-      // Pastikan paragraf penuh lebar (override max-width:640 dari CSS screen)
+      // Paragraf: penuh lebar, tiada max-width
       body.querySelectorAll("p").forEach(p => {
         p.style.maxWidth = "none";
         p.style.width = "100%";
@@ -621,22 +629,25 @@ async function renderA4Canvas() {
       const grid = card.querySelector("#previewPhotoGrid");
       grid.classList.add("photo-area");
 
-      // ——— Foto: lebih TINGGI supaya tak nampak “lebar pipih” ———
-      // Aspect ~ 4:3 lebih baik berbanding strip landskap
-      // 1 baris (2 foto): ~200px | 2 baris (3/4 foto): ~175px setiap baris
-      let photoH = rows === 1 ? 200 : 175 * rows;
+      // ——— SAJZ FOTO TETAP (jangan expand) ———
+      // Matlamat aspect ~ 3:2 (tak pipih, tak terlalu tinggi)
+      // 2 foto (1 baris): tinggi 168px → tiap foto ~358×168 ≈ 2.1:1
+      // 3/4 foto (2 baris): tinggi 150px/baris
+      const photoH = rows === 1 ? 168 : 150 * rows;
 
-      grid.style.display = "grid";
-      grid.style.gridTemplateColumns = "repeat(2, 1fr)";
-      grid.style.gridTemplateRows = "repeat(" + rows + ", 1fr)";
-      grid.style.gap = "10px";
-      grid.style.flex = "0 0 auto";
-      grid.style.height = photoH + "px";
-      grid.style.minHeight = photoH + "px";
-      grid.style.maxHeight = photoH + "px";
-      grid.style.alignSelf = "stretch";
-      grid.style.marginTop = "6px";
-      grid.style.marginBottom = "0";
+      grid.style.cssText = [
+        "display:grid",
+        "grid-template-columns:repeat(2,1fr)",
+        "grid-template-rows:repeat(" + rows + ",1fr)",
+        "gap:10px",
+        "flex:0 0 auto",
+        "height:" + photoH + "px",
+        "min-height:" + photoH + "px",
+        "max-height:" + photoH + "px",
+        "align-self:stretch",
+        "margin-top:8px",
+        "margin-bottom:0",
+      ].join(";");
 
       Array.from(grid.children).forEach((c, idx) => {
         c.style.aspectRatio = "auto";
@@ -649,7 +660,7 @@ async function renderA4Canvas() {
         c.style.justifySelf = "";
         c.style.gridColumn = "";
 
-        // 3 foto: ke-3 center separuh lebar (saiz sama, elak banner)
+        // 3 foto: foto ke-3 di tengah, lebar separuh (saiz sama)
         if (isThree && idx === 2) {
           c.style.gridColumn = "1 / -1";
           c.style.width = "50%";
@@ -664,67 +675,51 @@ async function renderA4Canvas() {
             c.style.backgroundImage = "none";
             c.innerHTML = "";
             if (badge) c.appendChild(badge);
-
             const img = doc.createElement("img");
             img.src = m[1];
             img.style.cssText =
-              "width:100%;height:100%;object-fit:cover;object-position:center 40%;display:block;";
+              "width:100%;height:100%;object-fit:cover;object-position:center center;display:block;";
             c.appendChild(img);
           }
         }
       });
 
-      // Signature terus selepas gambar — jarak kecil, TIADA ruang kosong besar
+      // ——— Signature: TERUS selepas gambar, paksa 16px ———
       const sigWrap = card.querySelector(".sig-wrap");
       if (sigWrap) {
-        sigWrap.style.marginTop = "18px";
-        sigWrap.style.paddingTop = "0";
-        sigWrap.style.flexShrink = "0";
+        sigWrap.style.setProperty("margin-top", "16px", "important");
+        sigWrap.style.setProperty("padding-top", "0", "important");
+        sigWrap.style.setProperty("flex", "0 0 auto", "important");
+        sigWrap.style.removeProperty("margin-bottom");
       }
 
-      // ——— Scale teks: utamakan BESAR ———
+      // ——— Scale teks HANYA jika overflow (utamakan 16px) ———
       let k = 1;
       card.style.setProperty("--k", "1");
       void body.offsetHeight;
 
-      while (body.scrollHeight > body.clientHeight - 4 && k > 0.90) {
-        k = Math.round((k - 0.02) * 100) / 100;
-        card.style.setProperty("--k", String(k));
-        void body.offsetHeight;
-      }
-
-      // Overflow → kecilkan foto dulu
-      if (body.scrollHeight > body.clientHeight - 4) {
+      // 1) Kecilkan foto dulu jika overflow
+      if (body.scrollHeight > body.clientHeight - 2) {
         let h = photoH;
-        const floor = rows === 1 ? 150 : rows * 130;
-        while (body.scrollHeight > body.clientHeight - 4 && h > floor) {
-          h -= 8;
+        const floor = rows === 1 ? 140 : rows * 120;
+        while (body.scrollHeight > body.clientHeight - 2 && h > floor) {
+          h -= 6;
           grid.style.height = h + "px";
           grid.style.minHeight = h + "px";
           grid.style.maxHeight = h + "px";
           void body.offsetHeight;
         }
-        photoH = h;
       }
 
-      // Last resort scale
-      while (body.scrollHeight > body.clientHeight - 4 && k > 0.84) {
-        k = Math.round((k - 0.015) * 1000) / 1000;
+      // 2) Baru scale teks — minimum 0.88 (masih besar)
+      while (body.scrollHeight > body.clientHeight - 2 && k > 0.88) {
+        k = Math.round((k - 0.02) * 100) / 100;
         card.style.setProperty("--k", String(k));
         void body.offsetHeight;
       }
 
-      // ——— Isi baki ruang KE FOTO (bukan tinggalkan kosong di tengah) ———
-      // Signature kekal terus selepas foto; ruang lebih masuk ke tinggi foto
-      void body.offsetHeight;
-      const leftover = body.clientHeight - body.scrollHeight;
-      if (leftover > 28) {
-        const add = Math.min(leftover - 16, rows * 36);
-        const newH = photoH + add;
-        grid.style.height = newH + "px";
-        grid.style.minHeight = newH + "px";
-        grid.style.maxHeight = newH + "px";
-      }
+      // JANGAN expand foto untuk isi ruang kosong.
+      // Ruang kosong di BAWAH signature adalah normal untuk dokumen 1 muka.
     },
   });
 }
