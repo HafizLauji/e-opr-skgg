@@ -594,8 +594,11 @@ async function janaAI(btn) {
 async function renderA4Canvas() {
   const cfg = UNITS[currentUnit];
   const slots = cfg.photoSlots;
-  const rows = slots <= 2 ? 1 : 2;
   const isThree = slots === 3;
+
+  // padding-bottom % untuk aspect ratio (html2canvas TAK support CSS aspect-ratio)
+  // 4/3 = 75%, 3/2 = 66.67%, 5/3 = 60%
+  const ratioPads = ["75%", "66.67%", "60%", "55%"];
 
   return await html2canvas(document.getElementById("reportCard"), {
     scale: 2,
@@ -620,64 +623,88 @@ async function renderA4Canvas() {
         if (v && v.textContent.trim() === "\u2014") r.remove();
       });
 
-      // Paragraf penuh lebar
       body.querySelectorAll("p").forEach(p => {
         p.style.maxWidth = "none";
         p.style.width = "100%";
       });
 
+      // ——— Ribbon tags: sikit lebih cantik dalam PDF ———
+      card.querySelectorAll(".ribbon-divider .tag").forEach(tag => {
+        tag.style.padding = "6px 18px 6px 16px";
+        tag.style.fontSize = "12.5px";
+        tag.style.letterSpacing = "1.3px";
+      });
+
       const grid = card.querySelector("#previewPhotoGrid");
       grid.classList.add("photo-area");
 
-      // ——— FOTO: sama macam preview (aspect-ratio 4/3) ———
-      // Ini punca preview cantik vs PDF hodoh sebelum ni
       grid.style.display = "grid";
       grid.style.gridTemplateColumns = "repeat(2, 1fr)";
       grid.style.gridTemplateRows = "";
-      grid.style.gap = "10px";
+      grid.style.gap = "12px";
       grid.style.flex = "0 0 auto";
       grid.style.height = "auto";
       grid.style.minHeight = "0";
       grid.style.maxHeight = "none";
       grid.style.alignSelf = "stretch";
-      grid.style.marginTop = "8px";
+      grid.style.marginTop = "10px";
       grid.style.marginBottom = "0";
       grid.style.width = "100%";
 
+      function applyPhotoRatio(padBottom) {
+        Array.from(grid.children).forEach((c, idx) => {
+          c.style.position = "relative";
+          c.style.overflow = "hidden";
+          c.style.borderRadius = "8px";
+          c.style.width = "100%";
+          c.style.height = "0";
+          c.style.paddingBottom = padBottom; // KUNCI: ganti aspect-ratio
+          c.style.minHeight = "0";
+          c.style.aspectRatio = "auto";
+          c.style.justifySelf = "";
+          c.style.gridColumn = "";
+          c.style.backgroundSize = "";
+          c.style.backgroundImage = "none";
+
+          if (isThree && idx === 2) {
+            c.style.gridColumn = "1 / -1";
+            c.style.width = "50%";
+            c.style.justifySelf = "center";
+          }
+        });
+      }
+
+      // Setup cells + images
       Array.from(grid.children).forEach((c, idx) => {
-        c.style.position = "relative";
-        c.style.overflow = "hidden";
-        c.style.borderRadius = "6px";
-        c.style.width = "100%";
-        c.style.height = "auto";
-        c.style.minHeight = "0";
-        c.style.aspectRatio = "4 / 3";   // KUNCI: sama macam preview
-        c.style.justifySelf = "";
-        c.style.gridColumn = "";
-
-        // 3 foto: ke-3 center separuh
-        if (isThree && idx === 2) {
-          c.style.gridColumn = "1 / -1";
-          c.style.width = "50%";
-          c.style.justifySelf = "center";
-        }
-
         const bg = c.style.backgroundImage;
+        let src = null;
         if (bg && bg !== "none") {
           const m = bg.match(/url\(["']?(.*?)["']?\)/);
-          if (m && m[1]) {
-            const badge = c.querySelector("span");
-            c.style.backgroundImage = "none";
-            c.innerHTML = "";
-            if (badge) c.appendChild(badge);
-            const img = doc.createElement("img");
-            img.src = m[1];
-            img.style.cssText =
-              "width:100%;height:100%;object-fit:cover;object-position:center center;display:block;position:absolute;inset:0;";
-            c.appendChild(img);
-          }
+          if (m) src = m[1];
+        }
+        // Also try existing img
+        const existingImg = c.querySelector("img");
+        if (!src && existingImg) src = existingImg.src;
+
+        const badge = c.querySelector("span");
+        c.innerHTML = "";
+        if (badge) {
+          badge.style.zIndex = "2";
+          c.appendChild(badge);
+        }
+
+        if (src) {
+          const img = doc.createElement("img");
+          img.src = src;
+          img.style.cssText =
+            "position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;object-position:center center;display:block;";
+          c.appendChild(img);
         }
       });
+
+      // Mula dengan 4:3 (75%)
+      let ri = 0;
+      applyPhotoRatio(ratioPads[ri]);
 
       // Signature terus selepas gambar
       const sigWrap = card.querySelector(".sig-wrap");
@@ -687,23 +714,18 @@ async function renderA4Canvas() {
         sigWrap.style.setProperty("flex", "0 0 auto", "important");
       }
 
-      // ——— Jika overflow: kecilkan aspect foto, baru scale teks ———
       let k = 1;
       card.style.setProperty("--k", "1");
       void body.offsetHeight;
 
-      // 1) Kecilkan aspect ratio foto (4/3 → 3/2 → 5/3) jika tak muat
-      const ratios = ["4 / 3", "3 / 2", "5 / 3", "2 / 1"];
-      let ri = 0;
-      while (body.scrollHeight > body.clientHeight - 2 && ri < ratios.length - 1) {
+      // Jika overflow: turun ratio berperingkat (masih elak terlalu pipih)
+      while (body.scrollHeight > body.clientHeight - 2 && ri < ratioPads.length - 1) {
         ri++;
-        Array.from(grid.children).forEach((c) => {
-          c.style.aspectRatio = ratios[ri];
-        });
+        applyPhotoRatio(ratioPads[ri]);
         void body.offsetHeight;
       }
 
-      // 2) Scale teks — min 0.88
+      // Scale teks min 0.88
       while (body.scrollHeight > body.clientHeight - 2 && k > 0.88) {
         k = Math.round((k - 0.02) * 100) / 100;
         card.style.setProperty("--k", String(k));
