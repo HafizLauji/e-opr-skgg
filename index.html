@@ -58,11 +58,46 @@
   }
 
   }
-  .btn-row { display: flex; gap: 8px; margin-top: 20px; }
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 22px;
+    width: 100%;
+  }
   .btn-primary, .btn-outline {
-    flex: 1; border: none; border-radius: 10px; padding: 11px 0; font-family: 'Libre Franklin', sans-serif;
-    font-weight: 700; font-size: 12.5px; display: flex; align-items: center; justify-content: center;
-    gap: 6px; cursor: pointer;
+    border: none; border-radius: 12px;
+    padding: 13px 10px;
+    font-family: 'Libre Franklin', sans-serif;
+    font-weight: 700; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; cursor: pointer;
+    white-space: nowrap; box-sizing: border-box;
+    min-height: 46px; line-height: 1.2;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .btn-primary {
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(13, 43, 78, 0.18);
+  }
+  .btn-outline {
+    background: #fff !important;
+    border: 1.5px solid #c5c5c5;
+  }
+  .btn-primary:active, .btn-outline:active { opacity: 0.85; transform: scale(0.98); }
+  /* Telefon: 2 butang penuh, atas-bawah, sama lebar & tinggi */
+  @media (max-width: 700px) {
+    .btn-row {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .btn-primary, .btn-outline {
+      width: 100%;
+      font-size: 14.5px;
+      padding: 15px 14px;
+      min-height: 52px;
+      border-radius: 12px;
+    }
   }
   .photo-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px;
@@ -610,10 +645,10 @@ async function renderA4Canvas() {
   const rows = slots <= 2 ? 1 : 2;
   const isThree = slots === 3;
 
-  // Target aspect ~ 3:2 (tak pipih). Width content ~730px → 2 col ≈ 360px
-  // 3:2 height ≈ 240px per row. Max total photo area:
-  const photoMax = rows === 1 ? 200 : 160 * rows;
-  const photoMin = rows === 1 ? 120 : 100 * rows;
+  // Julat tinggi foto — MINIMUM cukup supaya tak pipih
+  // 2 foto (1 baris): 160–210px | 3–4 foto (2 baris): 140–175px setiap baris
+  const photoMax = rows === 1 ? 210 : 175 * rows;
+  const photoMin = rows === 1 ? 160 : 140 * rows;
 
   return await html2canvas(document.getElementById("reportCard"), {
     scale: 2,
@@ -652,7 +687,6 @@ async function renderA4Canvas() {
         "overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;" +
         "padding:14px 30px 8px;box-sizing:border-box;";
 
-      // Buang info kosong
       card.querySelectorAll(".info-row").forEach(r => {
         const v = r.querySelector(".info-value");
         if (v && v.textContent.trim() === "\u2014") r.remove();
@@ -662,22 +696,18 @@ async function renderA4Canvas() {
         p.style.width = "100%";
       });
 
-      // Sembunyikan foto dulu — ukur tinggi teks sahaja
+      // Ukur teks sahaja
       grid.style.display = "none";
       if (sigWrap) sigWrap.style.display = "none";
       void body.offsetHeight;
       const textOnlyH = body.scrollHeight;
 
-      // Anggaran signature ~ 90px + margin
       const sigBudget = 95;
-      const gapBudget = 16;
+      const gapBudget = 14;
       let photoH = bodyAvail - textOnlyH - sigBudget - gapBudget;
-
-      // Clamp ke julat cantik (tak pipih, tak overflow)
       if (photoH > photoMax) photoH = photoMax;
-      if (photoH < photoMin) photoH = photoMin;
+      if (photoH < photoMin) photoH = photoMin; // jangan bawah minimum (elak pipih)
 
-      // Setup foto
       grid.classList.add("photo-area");
       grid.style.display = "grid";
       grid.style.gridTemplateColumns = "repeat(2, 1fr)";
@@ -730,7 +760,6 @@ async function renderA4Canvas() {
         }
       });
 
-      // Signature
       if (sigWrap) {
         sigWrap.style.display = "flex";
         sigWrap.style.setProperty("margin-top", "14px", "important");
@@ -743,38 +772,38 @@ async function renderA4Canvas() {
         return body.scrollHeight <= bodyAvail - 1;
       }
 
-      // Jika masih overflow — kecilkan foto
-      let guard = 0;
-      while (!fits() && photoH > photoMin - 20 && guard++ < 25) {
-        photoH -= 8;
-        grid.style.height = photoH + "px";
-        grid.style.minHeight = photoH + "px";
-        grid.style.maxHeight = photoH + "px";
-      }
-
-      // Scale teks
+      // 1) Scale teks DULU (jaga tinggi foto)
       let k = 1;
       card.style.setProperty("--k", "1");
-      guard = 0;
-      while (!fits() && k > 0.84 && guard++ < 15) {
+      let guard = 0;
+      while (!fits() && k > 0.85 && guard++ < 12) {
         k = Math.round((k - 0.02) * 100) / 100;
         card.style.setProperty("--k", String(k));
       }
 
-      // Kecilkan ribbon jika perlu
+      // 2) Kecilkan jarak ribbon
       if (!fits()) {
         card.querySelectorAll(".ribbon-divider").forEach(r => {
           r.style.margin = "12px 0 7px";
         });
+        void body.offsetHeight;
       }
 
-      // Last resort foto
+      // 3) Baru kecilkan foto — tapi JANGAN bawah photoMin - 20
+      const hardFloor = photoMin - 20;
       guard = 0;
-      while (!fits() && photoH > 80 && guard++ < 15) {
+      while (!fits() && photoH > hardFloor && guard++ < 15) {
         photoH -= 6;
         grid.style.height = photoH + "px";
         grid.style.minHeight = photoH + "px";
         grid.style.maxHeight = photoH + "px";
+      }
+
+      // 4) Last resort scale teks lagi
+      guard = 0;
+      while (!fits() && k > 0.80 && guard++ < 10) {
+        k = Math.round((k - 0.02) * 100) / 100;
+        card.style.setProperty("--k", String(k));
       }
     },
   });
