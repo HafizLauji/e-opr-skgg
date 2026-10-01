@@ -49,56 +49,11 @@
   }
   .field-group { display: grid; gap: 14px; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  @media (max-width: 700px) {
-    .two-col { grid-template-columns: 1fr !important; gap: 12px !important; }
-    input[type="date"], input[type="time"] {
-      min-height: 46px; font-size: 16px; width: 100%;
-      text-align: left; -webkit-appearance: none; appearance: none;
-    }
-  }
-
-  }
-  .btn-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-top: 28px;
-    width: 100%;
-  }
+  .btn-row { display: flex; gap: 8px; margin-top: 20px; }
   .btn-primary, .btn-outline {
-    border: none; border-radius: 12px;
-    padding: 13px 10px;
-    font-family: 'Libre Franklin', sans-serif;
-    font-weight: 700; font-size: 13px;
-    display: flex; align-items: center; justify-content: center;
-    gap: 8px; cursor: pointer;
-    white-space: nowrap; box-sizing: border-box;
-    min-height: 46px; line-height: 1.2;
-    transition: opacity 0.15s, transform 0.1s;
-  }
-  .btn-primary {
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(13, 43, 78, 0.18);
-  }
-  .btn-outline {
-    background: #fff !important;
-    border: 1.5px solid #c5c5c5;
-  }
-  .btn-primary:active, .btn-outline:active { opacity: 0.85; transform: scale(0.98); }
-  /* Telefon: 2 butang penuh, atas-bawah, sama lebar & tinggi */
-  @media (max-width: 700px) {
-    .btn-row {
-      grid-template-columns: 1fr;
-      gap: 14px;
-      margin-top: 32px;
-    }
-    .btn-primary, .btn-outline {
-      width: 100%;
-      font-size: 14.5px;
-      padding: 15px 14px;
-      min-height: 52px;
-      border-radius: 12px;
-    }
+    flex: 1; border: none; border-radius: 10px; padding: 11px 0; font-family: 'Libre Franklin', sans-serif;
+    font-weight: 700; font-size: 12.5px; display: flex; align-items: center; justify-content: center;
+    gap: 6px; cursor: pointer;
   }
   .photo-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px;
@@ -140,52 +95,16 @@
 
   /* ===== Layout A4 tetap — hanya aktif dalam salinan semasa jana PDF ===== */
   body.print-mode { margin: 0; background: #fff; }
-  body.print-mode .report-card {
-    width: 794px; height: 1123px; max-width: none; margin: 0;
-    border: none; border-radius: 0; box-shadow: none;
-    display: flex; flex-direction: column;
-  }
-  body.print-mode .report-header { flex: 0 0 auto; padding: 20px 32px; border-radius: 0; }
-  body.print-mode .report-body {
-    flex: 1 1 auto; min-height: 0;
-    display: flex; flex-direction: column;
-    justify-content: flex-start;
-    padding: 18px 32px 12px;
-  }
-  body.print-mode .report-body > * { flex: 0 0 auto; }
-  body.print-mode .report-footer { flex: 0 0 auto; padding: 9px 0; border-radius: 0; }
-
-  /* Teks + spacing seimbang */
-  body.print-mode .report-body p {
-    font-size: calc(15px * var(--k, 1)) !important;
-    line-height: 1.55 !important;
-    max-width: none !important;
-    width: 100% !important;
-    text-align: justify !important;
-    margin: 0 !important;
-  }
-  body.print-mode .ribbon-divider {
-    margin: calc(18px * var(--k, 1)) 0 calc(11px * var(--k, 1)) !important;
-  }
-  body.print-mode .ribbon-divider .tag {
-    padding: 6px 16px 6px 14px !important;
-    font-size: 12px !important;
-  }
-  body.print-mode .info-label { width: 150px; font-size: 10.5px !important; }
-  body.print-mode .info-value { font-size: 13.5px !important; }
-  body.print-mode .info-row { padding: 6px 0 !important; }
-  body.print-mode #p_tajuk { font-size: 17px !important; margin-bottom: 10px !important; padding-bottom: 10px !important; }
-
-  /* Foto & signature — tiada auto-margin, tiada flex grow */
-  body.print-mode .report-body > .photo-area {
-    flex: 0 0 auto !important;
-    align-self: stretch;
-  }
-  body.print-mode .sig-wrap {
-    margin-top: 16px !important;
-    padding-top: 0 !important;
-    flex: 0 0 auto !important;
-  }
+  body.print-mode .report-card { width: 794px; height: 1123px; max-width: none; margin: 0; border: none; border-radius: 0; box-shadow: none; display: flex; flex-direction: column; }
+  body.print-mode .report-header { flex: 0 0 auto; padding: 24px 34px; border-radius: 0; }
+  body.print-mode .report-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 22px 34px 18px; }
+  body.print-mode .report-body > * { flex-shrink: 0; }
+  body.print-mode .report-footer { flex: 0 0 auto; padding: 10px 0; border-radius: 0; }
+  body.print-mode .report-body p { font-size: calc(13px * var(--k, 1)) !important; line-height: 1.6 !important; }
+  body.print-mode .ribbon-divider { margin: 16px 0 12px; }
+  body.print-mode .info-label { width: 170px; }
+  body.print-mode .report-body > .photo-area { flex: 0 0 auto; }
+  body.print-mode .sig-wrap { margin-top: auto !important; padding-top: 14px; }
   @media print {
     .no-print { display: none !important; }
     .main-grid { grid-template-columns: 1fr !important; }
@@ -517,18 +436,11 @@ function renderPreviewPhotos() {
   grid.innerHTML = "";
 
   for (let i = 0; i < cfg.photoSlots; i++) {
-    // 3 gambar: foto ke-3 di baris kedua, saiz sama (50% width, center) — elak banner terlalu lebar
-    const isThirdOfThree = cfg.photoSlots === 3 && i === 2;
+    // Kalau bilangan gambar 3, gambar terakhir dibuat banner mendatar penuh lebar
+    // (bentuk landskap sepadan dengan gambar telefon, elak ruang kosong berlebihan)
+    const isBanner = cfg.photoSlots === 3 && i === 2;
     const cell = document.createElement("div");
-    cell.style.cssText = [
-      "position:relative",
-      "border-radius:8px",
-      "overflow:hidden",
-      `background:${cfg.tint}`,
-      `border:1px dashed ${cfg.color}55`,
-      "aspect-ratio:4/3",
-      isThirdOfThree ? "grid-column:1/-1;width:50%;justify-self:center" : "",
-    ].filter(Boolean).join(";");
+    cell.style.cssText = `position:relative;border-radius:8px;overflow:hidden;background:${cfg.tint};border:1px dashed ${cfg.color}55;aspect-ratio:${isBanner ? "3/1" : "4/3"};${isBanner ? "grid-column:1/-1;" : ""}`;
     const badge = `<span style="position:absolute;top:5px;left:5px;background:${cfg.color};color:#fff;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:1">${i + 1}</span>`;
     if (photos[i]) {
       cell.innerHTML = badge;
@@ -642,173 +554,50 @@ async function janaAI(btn) {
 // automatik sampai muat 1 muka. Hasil: penuh A4, tiada potongan, tiada border, tiada herot.
 async function renderA4Canvas() {
   const cfg = UNITS[currentUnit];
-  const slots = cfg.photoSlots;
-  const rows = slots <= 2 ? 1 : 2;
-  const isThree = slots === 3;
-
-  // Tinggi sederhana + grid LEBIH SEMPIT = aspect ~4:3 (tak pipih)
-  // 2 foto: tinggi 195, grid max 560px → setiap foto ~275×195 ≈ 1.4:1
-  // 3–4 foto: tinggi 165/baris, grid max 560px
-  const photoMax = rows === 1 ? 200 : 170 * rows;
-  const photoMin = rows === 1 ? 170 : 145 * rows;
-  const gridMaxW = 560; // KUNCI: jangan full 730px
-
+  const rows = cfg.photoSlots <= 2 ? 1 : 2;
   return await html2canvas(document.getElementById("reportCard"), {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-    width: 794,
-    height: 1123,
-    windowWidth: 794,
-    windowHeight: 1123,
-    scrollX: 0,
-    scrollY: 0,
+    scale: 2, useCORS: true, backgroundColor: "#ffffff",
+    windowWidth: 794, windowHeight: 1123, scrollX: 0, scrollY: 0,
     onclone: (doc) => {
       const card = doc.getElementById("reportCard");
       doc.body.innerHTML = "";
       doc.body.className = "print-mode";
-      doc.body.style.cssText = "margin:0;padding:0;width:794px;height:1123px;overflow:hidden;background:#fff;";
       doc.body.appendChild(card);
 
-      card.style.cssText =
-        "width:794px;height:1123px;max-width:none;margin:0;border:none;border-radius:0;" +
-        "box-shadow:none;overflow:hidden;display:flex;flex-direction:column;background:#fff;";
-
-      const header = card.querySelector(".report-header");
-      const footer = card.querySelector(".report-footer");
       const body = card.querySelector(".report-body");
-      const grid = card.querySelector("#previewPhotoGrid");
-      const sigWrap = card.querySelector(".sig-wrap");
-
-      void card.offsetHeight;
-      const hH = header ? header.offsetHeight : 100;
-      const fH = footer ? footer.offsetHeight : 36;
-      const bodyAvail = 1123 - hH - fH;
-
-      body.style.cssText =
-        "flex:1 1 auto;min-height:0;height:" + bodyAvail + "px;max-height:" + bodyAvail + "px;" +
-        "overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;" +
-        "padding:12px 28px 6px;box-sizing:border-box;";
-
       card.querySelectorAll(".info-row").forEach(r => {
         const v = r.querySelector(".info-value");
         if (v && v.textContent.trim() === "\u2014") r.remove();
-        r.style.padding = "5px 0";
       });
-      body.querySelectorAll("p").forEach(p => {
-        p.style.maxWidth = "none";
-        p.style.width = "100%";
-      });
-      card.querySelectorAll(".ribbon-divider").forEach(r => {
-        r.style.margin = "14px 0 8px";
-      });
-
-      // Ukur teks sahaja
-      grid.style.display = "none";
-      if (sigWrap) sigWrap.style.display = "none";
-      void body.offsetHeight;
-      const textOnlyH = body.scrollHeight;
-
-      const sigBudget = 88;
-      const gapBudget = 12;
-      let photoH = bodyAvail - textOnlyH - sigBudget - gapBudget;
-      if (photoH > photoMax) photoH = photoMax;
-      if (photoH < photoMin) photoH = photoMin;
-
+      const grid = card.querySelector("#previewPhotoGrid");
       grid.classList.add("photo-area");
-      grid.style.display = "grid";
-      grid.style.gridTemplateColumns = "repeat(2, 1fr)";
       grid.style.gridTemplateRows = "repeat(" + rows + ", 1fr)";
-      grid.style.gap = "10px";
-      grid.style.flex = "0 0 auto";
-      // KUNCI: grid sempit + center = foto tak pipih
-      grid.style.width = "100%";
-      grid.style.maxWidth = gridMaxW + "px";
-      grid.style.marginLeft = "auto";
-      grid.style.marginRight = "auto";
-      grid.style.height = photoH + "px";
-      grid.style.minHeight = photoH + "px";
-      grid.style.maxHeight = photoH + "px";
-      grid.style.marginTop = "8px";
-      grid.style.overflow = "hidden";
-      grid.style.alignSelf = "center";
+      let photoRowH = 130;
+      grid.style.height = (rows * photoRowH + (rows - 1) * 8) + "px";
+      Array.from(grid.children).forEach(c => { c.style.aspectRatio = "auto"; });
 
-      Array.from(grid.children).forEach((c, idx) => {
-        let src = null;
-        const bg = c.style.backgroundImage;
-        if (bg && bg !== "none") {
-          const m = bg.match(/url\(["']?(.*?)["']?\)/);
-          if (m) src = m[1];
-        }
-        const existing = c.querySelector("img");
-        if (!src && existing) src = existing.src;
-        const badge = c.querySelector("span");
-        c.innerHTML = "";
-        if (badge) { badge.style.zIndex = "2"; c.appendChild(badge); }
-
-        c.style.position = "relative";
-        c.style.overflow = "hidden";
-        c.style.borderRadius = "6px";
-        c.style.width = "100%";
-        c.style.height = "100%";
-        c.style.minHeight = "0";
-        c.style.paddingBottom = "0";
-        c.style.aspectRatio = "auto";
-        c.style.backgroundImage = "none";
-        c.style.gridColumn = "";
-        c.style.justifySelf = "";
-        if (isThree && idx === 2) {
-          c.style.gridColumn = "1 / -1";
-          c.style.width = "50%";
-          c.style.justifySelf = "center";
-        }
-        if (src) {
-          const img = doc.createElement("img");
-          img.src = src;
-          img.style.cssText =
-            "position:absolute;top:0;left:0;width:100%;height:100%;" +
-            "object-fit:cover;object-position:center center;display:block;";
-          c.appendChild(img);
-        }
-      });
-
-      if (sigWrap) {
-        sigWrap.style.display = "flex";
-        sigWrap.style.setProperty("margin-top", "12px", "important");
-        sigWrap.style.setProperty("padding-top", "0", "important");
-        sigWrap.style.setProperty("flex", "0 0 auto", "important");
-      }
-
-      function fits() {
-        void body.offsetHeight;
-        return body.scrollHeight <= bodyAvail - 1;
-      }
-
+      // Kalau kandungan melebihi 1 muka A4: kecilkan GAMBAR dulu (sampai minimum
+      // munasabah), baru kecilkan TEKS sikit sahaja (had minimum 85%) — supaya
+      // teks tak jadi terlalu kecil untuk dibaca walaupun laporan panjang.
       let k = 1;
-      card.style.setProperty("--k", "1");
+      card.style.setProperty("--k", k);
       let guard = 0;
-      while (!fits() && k > 0.86 && guard++ < 10) {
-        k = Math.round((k - 0.02) * 100) / 100;
-        card.style.setProperty("--k", String(k));
-      }
-
-      const hardFloor = Math.max(photoMin - 20, rows === 1 ? 155 : rows * 130);
-      guard = 0;
-      while (!fits() && photoH > hardFloor && guard++ < 12) {
-        photoH -= 5;
-        grid.style.height = photoH + "px";
-        grid.style.minHeight = photoH + "px";
-        grid.style.maxHeight = photoH + "px";
-      }
-
-      guard = 0;
-      while (!fits() && k > 0.82 && guard++ < 8) {
-        k = Math.round((k - 0.02) * 100) / 100;
-        card.style.setProperty("--k", String(k));
+      while (body.scrollHeight > body.clientHeight - 6 && guard < 40) {
+        guard++;
+        if (photoRowH > 85) {
+          photoRowH -= 6;
+          grid.style.height = (rows * photoRowH + (rows - 1) * 8) + "px";
+        } else if (k > 0.85) {
+          k -= 0.03;
+          card.style.setProperty("--k", k.toFixed(2));
+        } else {
+          break;
+        }
       }
     },
   });
 }
+
 function canvasToA4Pdf(canvas, quality) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
