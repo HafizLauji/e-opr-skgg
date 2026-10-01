@@ -594,11 +594,13 @@ async function janaAI(btn) {
 async function renderA4Canvas() {
   const cfg = UNITS[currentUnit];
   const slots = cfg.photoSlots;
+  const rows = slots <= 2 ? 1 : 2;
   const isThree = slots === 3;
 
-  // padding-bottom % untuk aspect ratio (html2canvas TAK support CSS aspect-ratio)
-  // 4/3 = 75%, 3/2 = 66.67%, 5/3 = 60%
-  const ratioPads = ["75%", "66.67%", "60%", "55%"];
+  // Tinggi foto TETAP dalam px (stabil di mobile + desktop)
+  // Elak padding-% / aspect-ratio — html2canvas mobile sering rosak
+  // 2 foto: 1 baris 190px | 3–4 foto: 2 baris × 155px
+  const basePhotoH = rows === 1 ? 190 : 155 * rows;
 
   return await html2canvas(document.getElementById("reportCard"), {
     scale: 2,
@@ -612,10 +614,30 @@ async function renderA4Canvas() {
       const card = doc.getElementById("reportCard");
       doc.body.innerHTML = "";
       doc.body.className = "print-mode";
+      doc.body.style.margin = "0";
+      doc.body.style.padding = "0";
+      doc.body.style.width = "794px";
+      doc.body.style.height = "1123px";
+      doc.body.style.overflow = "hidden";
       doc.body.appendChild(card);
+
+      // Paksa saiz A4 — penting untuk mobile
+      card.style.width = "794px";
+      card.style.height = "1123px";
+      card.style.maxWidth = "none";
+      card.style.margin = "0";
+      card.style.borderRadius = "0";
+      card.style.boxShadow = "none";
+      card.style.border = "none";
+      card.style.overflow = "hidden";
+      card.style.display = "flex";
+      card.style.flexDirection = "column";
 
       const body = card.querySelector(".report-body");
       body.style.justifyContent = "flex-start";
+      body.style.flex = "1 1 auto";
+      body.style.minHeight = "0";
+      body.style.overflow = "hidden";
 
       // Buang baris info kosong
       card.querySelectorAll(".info-row").forEach(r => {
@@ -628,43 +650,44 @@ async function renderA4Canvas() {
         p.style.width = "100%";
       });
 
-      // ——— Ribbon tags: sikit lebih cantik dalam PDF ———
+      // Ribbon tags
       card.querySelectorAll(".ribbon-divider .tag").forEach(tag => {
         tag.style.padding = "6px 18px 6px 16px";
         tag.style.fontSize = "12.5px";
-        tag.style.letterSpacing = "1.3px";
       });
 
       const grid = card.querySelector("#previewPhotoGrid");
       grid.classList.add("photo-area");
 
-      grid.style.display = "grid";
-      grid.style.gridTemplateColumns = "repeat(2, 1fr)";
-      grid.style.gridTemplateRows = "";
-      grid.style.gap = "12px";
-      grid.style.flex = "0 0 auto";
-      grid.style.height = "auto";
-      grid.style.minHeight = "0";
-      grid.style.maxHeight = "none";
-      grid.style.alignSelf = "stretch";
-      grid.style.marginTop = "10px";
-      grid.style.marginBottom = "0";
-      grid.style.width = "100%";
+      let photoH = basePhotoH;
 
-      function applyPhotoRatio(padBottom) {
+      function layoutPhotos(h) {
+        grid.style.display = "grid";
+        grid.style.gridTemplateColumns = "repeat(2, 1fr)";
+        grid.style.gridTemplateRows = "repeat(" + rows + ", 1fr)";
+        grid.style.gap = "10px";
+        grid.style.flex = "0 0 auto";
+        grid.style.width = "100%";
+        grid.style.height = h + "px";
+        grid.style.minHeight = h + "px";
+        grid.style.maxHeight = h + "px";
+        grid.style.marginTop = "8px";
+        grid.style.marginBottom = "0";
+        grid.style.alignSelf = "stretch";
+        grid.style.overflow = "hidden";
+
         Array.from(grid.children).forEach((c, idx) => {
           c.style.position = "relative";
           c.style.overflow = "hidden";
           c.style.borderRadius = "8px";
           c.style.width = "100%";
-          c.style.height = "0";
-          c.style.paddingBottom = padBottom; // KUNCI: ganti aspect-ratio
+          c.style.height = "100%";
           c.style.minHeight = "0";
+          c.style.paddingBottom = "0";
           c.style.aspectRatio = "auto";
+          c.style.backgroundImage = "none";
           c.style.justifySelf = "";
           c.style.gridColumn = "";
-          c.style.backgroundSize = "";
-          c.style.backgroundImage = "none";
 
           if (isThree && idx === 2) {
             c.style.gridColumn = "1 / -1";
@@ -674,17 +697,16 @@ async function renderA4Canvas() {
         });
       }
 
-      // Setup cells + images
-      Array.from(grid.children).forEach((c, idx) => {
-        const bg = c.style.backgroundImage;
+      // Masukkan <img> dari background / img sedia ada
+      Array.from(grid.children).forEach((c) => {
         let src = null;
+        const bg = c.style.backgroundImage;
         if (bg && bg !== "none") {
           const m = bg.match(/url\(["']?(.*?)["']?\)/);
           if (m) src = m[1];
         }
-        // Also try existing img
-        const existingImg = c.querySelector("img");
-        if (!src && existingImg) src = existingImg.src;
+        const existing = c.querySelector("img");
+        if (!src && existing) src = existing.src;
 
         const badge = c.querySelector("span");
         c.innerHTML = "";
@@ -692,7 +714,6 @@ async function renderA4Canvas() {
           badge.style.zIndex = "2";
           c.appendChild(badge);
         }
-
         if (src) {
           const img = doc.createElement("img");
           img.src = src;
@@ -702,14 +723,12 @@ async function renderA4Canvas() {
         }
       });
 
-      // Mula dengan 4:3 (75%)
-      let ri = 0;
-      applyPhotoRatio(ratioPads[ri]);
+      layoutPhotos(photoH);
 
-      // Signature terus selepas gambar
+      // Signature — terus selepas gambar
       const sigWrap = card.querySelector(".sig-wrap");
       if (sigWrap) {
-        sigWrap.style.setProperty("margin-top", "18px", "important");
+        sigWrap.style.setProperty("margin-top", "16px", "important");
         sigWrap.style.setProperty("padding-top", "0", "important");
         sigWrap.style.setProperty("flex", "0 0 auto", "important");
       }
@@ -718,17 +737,25 @@ async function renderA4Canvas() {
       card.style.setProperty("--k", "1");
       void body.offsetHeight;
 
-      // Jika overflow: turun ratio berperingkat (masih elak terlalu pipih)
-      while (body.scrollHeight > body.clientHeight - 2 && ri < ratioPads.length - 1) {
-        ri++;
-        applyPhotoRatio(ratioPads[ri]);
+      // 1) Kecilkan foto dulu sampai muat (penting mobile)
+      const floor = rows === 1 ? 130 : rows * 110;
+      while (body.scrollHeight > body.clientHeight - 2 && photoH > floor) {
+        photoH -= 8;
+        layoutPhotos(photoH);
         void body.offsetHeight;
       }
 
-      // Scale teks min 0.88
-      while (body.scrollHeight > body.clientHeight - 2 && k > 0.88) {
+      // 2) Scale teks min 0.86
+      while (body.scrollHeight > body.clientHeight - 2 && k > 0.86) {
         k = Math.round((k - 0.02) * 100) / 100;
         card.style.setProperty("--k", String(k));
+        void body.offsetHeight;
+      }
+
+      // 3) Last resort: kecilkan foto lagi
+      while (body.scrollHeight > body.clientHeight - 2 && photoH > (rows === 1 ? 110 : rows * 95)) {
+        photoH -= 6;
+        layoutPhotos(photoH);
         void body.offsetHeight;
       }
     },
