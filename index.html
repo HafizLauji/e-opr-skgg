@@ -49,6 +49,14 @@
   }
   .field-group { display: grid; gap: 14px; }
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  /* Mobile: susun menegak — elak tarikh/masa sesak */
+  @media (max-width: 520px) {
+    .two-col { grid-template-columns: 1fr; gap: 12px; }
+    input[type="date"], input[type="time"] {
+      min-height: 44px;
+      font-size: 16px; /* elak iOS auto-zoom */
+    }
+  }
   .btn-row { display: flex; gap: 8px; margin-top: 20px; }
   .btn-primary, .btn-outline {
     flex: 1; border: none; border-radius: 10px; padding: 11px 0; font-family: 'Libre Franklin', sans-serif;
@@ -110,22 +118,26 @@
   body.print-mode .report-body > * { flex: 0 0 auto; }
   body.print-mode .report-footer { flex: 0 0 auto; padding: 9px 0; border-radius: 0; }
 
-  /* Teks BESAR + penuh lebar + spacing longgar macam preview */
+  /* Teks + spacing section lebih longgar (tak rapat) */
   body.print-mode .report-body p {
-    font-size: calc(15.5px * var(--k, 1)) !important;
-    line-height: 1.55 !important;
+    font-size: calc(15px * var(--k, 1)) !important;
+    line-height: 1.6 !important;
     max-width: none !important;
     width: 100% !important;
     text-align: justify !important;
-    margin: 0 !important;
+    margin: 0 0 2px 0 !important;
   }
   body.print-mode .ribbon-divider {
-    margin: calc(18px * var(--k, 1)) 0 calc(12px * var(--k, 1)) !important;
+    margin: calc(22px * var(--k, 1)) 0 calc(14px * var(--k, 1)) !important;
+  }
+  body.print-mode .ribbon-divider .tag {
+    padding: 6px 18px 6px 16px !important;
+    font-size: 12.5px !important;
   }
   body.print-mode .info-label { width: 155px; font-size: 11px !important; }
   body.print-mode .info-value { font-size: 14px !important; }
-  body.print-mode .info-row { padding: 7px 0 !important; }
-  body.print-mode #p_tajuk { font-size: 18px !important; margin-bottom: 12px !important; }
+  body.print-mode .info-row { padding: 8px 0 !important; }
+  body.print-mode #p_tajuk { font-size: 18px !important; margin-bottom: 14px !important; padding-bottom: 12px !important; }
 
   /* Foto & signature — tiada auto-margin, tiada flex grow */
   body.print-mode .report-body > .photo-area {
@@ -596,11 +608,8 @@ async function renderA4Canvas() {
   const slots = cfg.photoSlots;
   const rows = slots <= 2 ? 1 : 2;
   const isThree = slots === 3;
-
-  // Tinggi foto TETAP dalam px (stabil di mobile + desktop)
-  // Elak padding-% / aspect-ratio — html2canvas mobile sering rosak
-  // 2 foto: 1 baris 190px | 3–4 foto: 2 baris × 155px
-  const basePhotoH = rows === 1 ? 190 : 155 * rows;
+  // Mula lebih konservatif — elak overflow di mobile
+  const basePhotoH = rows === 1 ? 170 : 125 * rows;
 
   return await html2canvas(document.getElementById("reportCard"), {
     scale: 2,
@@ -614,32 +623,37 @@ async function renderA4Canvas() {
       const card = doc.getElementById("reportCard");
       doc.body.innerHTML = "";
       doc.body.className = "print-mode";
-      doc.body.style.margin = "0";
-      doc.body.style.padding = "0";
-      doc.body.style.width = "794px";
-      doc.body.style.height = "1123px";
-      doc.body.style.overflow = "hidden";
+      doc.body.style.cssText = "margin:0;padding:0;width:794px;height:1123px;overflow:hidden;background:#fff;";
       doc.body.appendChild(card);
 
-      // Paksa saiz A4 — penting untuk mobile
-      card.style.width = "794px";
-      card.style.height = "1123px";
-      card.style.maxWidth = "none";
-      card.style.margin = "0";
-      card.style.borderRadius = "0";
-      card.style.boxShadow = "none";
-      card.style.border = "none";
-      card.style.overflow = "hidden";
-      card.style.display = "flex";
-      card.style.flexDirection = "column";
+      // Paksa A4
+      card.style.cssText = "width:794px;height:1123px;max-width:none;margin:0;border:none;border-radius:0;box-shadow:none;overflow:hidden;display:flex;flex-direction:column;background:#fff;";
 
+      const header = card.querySelector(".report-header");
+      const footer = card.querySelector(".report-footer");
       const body = card.querySelector(".report-body");
-      body.style.justifyContent = "flex-start";
-      body.style.flex = "1 1 auto";
-      body.style.minHeight = "0";
-      body.style.overflow = "hidden";
 
-      // Buang baris info kosong
+      // Kira tinggi body yang ada (jangan rely pada clientHeight mobile yang kadang silap)
+      const headerH = 100; // anggaran selamat; akan diukur semula
+      void card.offsetHeight;
+      const measuredHeader = header ? header.offsetHeight : 100;
+      const measuredFooter = footer ? footer.offsetHeight : 36;
+      const bodyAvail = 1123 - measuredHeader - measuredFooter;
+
+      body.style.cssText = [
+        "flex:1 1 auto",
+        "min-height:0",
+        "height:" + bodyAvail + "px",
+        "max-height:" + bodyAvail + "px",
+        "overflow:hidden",
+        "display:flex",
+        "flex-direction:column",
+        "justify-content:flex-start",
+        "padding:16px 32px 10px",
+        "box-sizing:border-box",
+      ].join(";");
+
+      // Buang info kosong
       card.querySelectorAll(".info-row").forEach(r => {
         const v = r.querySelector(".info-value");
         if (v && v.textContent.trim() === "\u2014") r.remove();
@@ -650,7 +664,6 @@ async function renderA4Canvas() {
         p.style.width = "100%";
       });
 
-      // Ribbon tags
       card.querySelectorAll(".ribbon-divider .tag").forEach(tag => {
         tag.style.padding = "6px 18px 6px 16px";
         tag.style.fontSize = "12.5px";
@@ -660,6 +673,7 @@ async function renderA4Canvas() {
       grid.classList.add("photo-area");
 
       let photoH = basePhotoH;
+      let ribbonScale = 1; // 1 = normal, turun jika perlu
 
       function layoutPhotos(h) {
         grid.style.display = "grid";
@@ -673,8 +687,8 @@ async function renderA4Canvas() {
         grid.style.maxHeight = h + "px";
         grid.style.marginTop = "8px";
         grid.style.marginBottom = "0";
-        grid.style.alignSelf = "stretch";
         grid.style.overflow = "hidden";
+        grid.style.alignSelf = "stretch";
 
         Array.from(grid.children).forEach((c, idx) => {
           c.style.position = "relative";
@@ -688,7 +702,6 @@ async function renderA4Canvas() {
           c.style.backgroundImage = "none";
           c.style.justifySelf = "";
           c.style.gridColumn = "";
-
           if (isThree && idx === 2) {
             c.style.gridColumn = "1 / -1";
             c.style.width = "50%";
@@ -697,7 +710,7 @@ async function renderA4Canvas() {
         });
       }
 
-      // Masukkan <img> dari background / img sedia ada
+      // Setup images
       Array.from(grid.children).forEach((c) => {
         let src = null;
         const bg = c.style.backgroundImage;
@@ -707,55 +720,69 @@ async function renderA4Canvas() {
         }
         const existing = c.querySelector("img");
         if (!src && existing) src = existing.src;
-
         const badge = c.querySelector("span");
         c.innerHTML = "";
-        if (badge) {
-          badge.style.zIndex = "2";
-          c.appendChild(badge);
-        }
+        if (badge) { badge.style.zIndex = "2"; c.appendChild(badge); }
         if (src) {
           const img = doc.createElement("img");
           img.src = src;
-          img.style.cssText =
-            "position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;object-position:center center;display:block;";
+          img.style.cssText = "position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;object-position:center center;display:block;";
           c.appendChild(img);
         }
       });
 
       layoutPhotos(photoH);
 
-      // Signature — terus selepas gambar
       const sigWrap = card.querySelector(".sig-wrap");
       if (sigWrap) {
-        sigWrap.style.setProperty("margin-top", "16px", "important");
+        sigWrap.style.setProperty("margin-top", "14px", "important");
         sigWrap.style.setProperty("padding-top", "0", "important");
         sigWrap.style.setProperty("flex", "0 0 auto", "important");
       }
 
+      function fits() {
+        void body.offsetHeight;
+        // Guna scrollHeight vs height yang kita set (bodyAvail)
+        return body.scrollHeight <= bodyAvail + 1;
+      }
+
       let k = 1;
       card.style.setProperty("--k", "1");
-      void body.offsetHeight;
 
-      // 1) Kecilkan foto dulu sampai muat (penting mobile)
-      const floor = rows === 1 ? 130 : rows * 110;
-      while (body.scrollHeight > body.clientHeight - 2 && photoH > floor) {
-        photoH -= 8;
+      // 1) Kecilkan foto
+      const floor = rows === 1 ? 120 : rows * 100;
+      while (!fits() && photoH > floor) {
+        photoH -= 10;
         layoutPhotos(photoH);
+      }
+
+      // 2) Kecilkan jarak ribbon
+      if (!fits()) {
+        card.querySelectorAll(".ribbon-divider").forEach(r => {
+          r.style.margin = "14px 0 8px";
+        });
         void body.offsetHeight;
       }
 
-      // 2) Scale teks min 0.86
-      while (body.scrollHeight > body.clientHeight - 2 && k > 0.86) {
-        k = Math.round((k - 0.02) * 100) / 100;
+      // 3) Scale teks
+      while (!fits() && k > 0.84) {
+        k = Math.round((k - 0.03) * 100) / 100;
         card.style.setProperty("--k", String(k));
         void body.offsetHeight;
       }
 
-      // 3) Last resort: kecilkan foto lagi
-      while (body.scrollHeight > body.clientHeight - 2 && photoH > (rows === 1 ? 110 : rows * 95)) {
-        photoH -= 6;
+      // 4) Last resort foto lagi kecil
+      while (!fits() && photoH > (rows === 1 ? 100 : rows * 85)) {
+        photoH -= 8;
         layoutPhotos(photoH);
+      }
+
+      // 5) Jika STILL overflow — kecilkan padding body
+      if (!fits()) {
+        body.style.padding = "12px 28px 8px";
+        card.querySelectorAll(".ribbon-divider").forEach(r => {
+          r.style.margin = "10px 0 6px";
+        });
         void body.offsetHeight;
       }
     },
