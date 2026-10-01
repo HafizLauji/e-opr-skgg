@@ -646,10 +646,10 @@ async function renderA4Canvas() {
   const rows = slots <= 2 ? 1 : 2;
   const isThree = slots === 3;
 
-  // Julat tinggi foto — MINIMUM cukup supaya tak pipih
-  // 2 foto (1 baris): 160–210px | 3–4 foto (2 baris): 140–175px setiap baris
-  const photoMax = rows === 1 ? 210 : 175 * rows;
-  const photoMin = rows === 1 ? 160 : 140 * rows;
+  // Tinggi foto lebih besar supaya tak pipih
+  // 2 foto: 180–220px | 3–4 foto: 155–185px setiap baris
+  const photoMax = rows === 1 ? 220 : 185 * rows;
+  const photoMin = rows === 1 ? 180 : 155 * rows;
 
   return await html2canvas(document.getElementById("reportCard"), {
     scale: 2,
@@ -686,15 +686,20 @@ async function renderA4Canvas() {
       body.style.cssText =
         "flex:1 1 auto;min-height:0;height:" + bodyAvail + "px;max-height:" + bodyAvail + "px;" +
         "overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start;" +
-        "padding:14px 30px 8px;box-sizing:border-box;";
+        "padding:12px 28px 6px;box-sizing:border-box;";
 
+      // Compact info + ribbon slightly to bagi ruang foto
       card.querySelectorAll(".info-row").forEach(r => {
         const v = r.querySelector(".info-value");
         if (v && v.textContent.trim() === "\u2014") r.remove();
+        r.style.padding = "5px 0";
       });
       body.querySelectorAll("p").forEach(p => {
         p.style.maxWidth = "none";
         p.style.width = "100%";
+      });
+      card.querySelectorAll(".ribbon-divider").forEach(r => {
+        r.style.margin = "14px 0 8px";
       });
 
       // Ukur teks sahaja
@@ -703,11 +708,11 @@ async function renderA4Canvas() {
       void body.offsetHeight;
       const textOnlyH = body.scrollHeight;
 
-      const sigBudget = 95;
-      const gapBudget = 14;
+      const sigBudget = 88;
+      const gapBudget = 12;
       let photoH = bodyAvail - textOnlyH - sigBudget - gapBudget;
       if (photoH > photoMax) photoH = photoMax;
-      if (photoH < photoMin) photoH = photoMin; // jangan bawah minimum (elak pipih)
+      if (photoH < photoMin) photoH = photoMin;
 
       grid.classList.add("photo-area");
       grid.style.display = "grid";
@@ -719,7 +724,7 @@ async function renderA4Canvas() {
       grid.style.height = photoH + "px";
       grid.style.minHeight = photoH + "px";
       grid.style.maxHeight = photoH + "px";
-      grid.style.marginTop = "8px";
+      grid.style.marginTop = "6px";
       grid.style.overflow = "hidden";
 
       Array.from(grid.children).forEach((c, idx) => {
@@ -746,10 +751,11 @@ async function renderA4Canvas() {
         c.style.backgroundImage = "none";
         c.style.gridColumn = "";
         c.style.justifySelf = "";
+        // 3 foto: foto ke-3 full width row (bukan 50%) — elak jalur kecil
         if (isThree && idx === 2) {
           c.style.gridColumn = "1 / -1";
-          c.style.width = "50%";
-          c.style.justifySelf = "center";
+          c.style.width = "100%";
+          c.style.justifySelf = "stretch";
         }
         if (src) {
           const img = doc.createElement("img");
@@ -763,7 +769,7 @@ async function renderA4Canvas() {
 
       if (sigWrap) {
         sigWrap.style.display = "flex";
-        sigWrap.style.setProperty("margin-top", "14px", "important");
+        sigWrap.style.setProperty("margin-top", "12px", "important");
         sigWrap.style.setProperty("padding-top", "0", "important");
         sigWrap.style.setProperty("flex", "0 0 auto", "important");
       }
@@ -773,36 +779,28 @@ async function renderA4Canvas() {
         return body.scrollHeight <= bodyAvail - 1;
       }
 
-      // 1) Scale teks DULU (jaga tinggi foto)
+      // Scale teks dulu
       let k = 1;
       card.style.setProperty("--k", "1");
       let guard = 0;
-      while (!fits() && k > 0.85 && guard++ < 12) {
+      while (!fits() && k > 0.86 && guard++ < 10) {
         k = Math.round((k - 0.02) * 100) / 100;
         card.style.setProperty("--k", String(k));
       }
 
-      // 2) Kecilkan jarak ribbon
-      if (!fits()) {
-        card.querySelectorAll(".ribbon-divider").forEach(r => {
-          r.style.margin = "12px 0 7px";
-        });
-        void body.offsetHeight;
-      }
-
-      // 3) Baru kecilkan foto — tapi JANGAN bawah photoMin - 20
-      const hardFloor = photoMin - 20;
+      // Foto: jangan kecil sangat
+      const hardFloor = Math.max(photoMin - 25, rows === 1 ? 150 : rows * 130);
       guard = 0;
-      while (!fits() && photoH > hardFloor && guard++ < 15) {
-        photoH -= 6;
+      while (!fits() && photoH > hardFloor && guard++ < 12) {
+        photoH -= 5;
         grid.style.height = photoH + "px";
         grid.style.minHeight = photoH + "px";
         grid.style.maxHeight = photoH + "px";
       }
 
-      // 4) Last resort scale teks lagi
+      // Last scale teks
       guard = 0;
-      while (!fits() && k > 0.80 && guard++ < 10) {
+      while (!fits() && k > 0.82 && guard++ < 8) {
         k = Math.round((k - 0.02) * 100) / 100;
         card.style.setProperty("--k", String(k));
       }
