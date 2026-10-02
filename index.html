@@ -224,6 +224,53 @@ function applyPdfSmartCrop(doc) {
 }
 
 
+/* ============================================================
+   MOBILE TAB FIX V4.8
+   - Tab unit kekal satu baris pada telefon
+   - Lebar sama rata
+   - Tidak pecah/overflow
+   - Desktop tidak berubah
+   ============================================================ */
+#unitTabs {
+  width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+#unitTabs .unit-tab {
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  width: 0;
+  max-width: none;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 700px) {
+  #unitTabs {
+    display: flex !important;
+    gap: 4px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  #unitTabs .unit-tab {
+    flex: 1 1 0 !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    padding: 10px 4px !important;
+    font-size: 10px !important;
+    line-height: 1.2 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+}
+
 /* PDF layout is device-independent; mobile only scales the preview */
 @media (max-width: 700px) {
   .report-card {
