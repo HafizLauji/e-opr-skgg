@@ -2,8 +2,8 @@
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | FINAL SIGNATURE GAP + SMALL FOOTER -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | SIGNATURE GAP + SMALLER FOOTER ONLY -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 FINAL | RESPONSIVE SCREEN | PDF A4 LOCKED -->
-<!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 FINAL | A4 LOCKED | 4 PHOTO | SMART CROP -->
-<!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | 4 GAMBAR | SMART CROP | A4 LOCKED -->
+<!-- SKGG LAPORAN SEKOLAH BUILD: V5.0 | A4 LOCKED | 4 PHOTO | LIGHT SMART CROP + FONT SIGNATURE -->
+<!-- SKGG LAPORAN SEKOLAH BUILD: V5.0 | 4 GAMBAR | LIGHT SMART CROP | SIGNATURE FONT -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | 4 GAMBAR | A4 LOCKED -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | 4 GAMBAR | 3 UNIT | TIADA MEDAN KHAS UNIT -->
 <!DOCTYPE html>
@@ -13,7 +13,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Penjana Laporan Sekolah — SK Gading-Gading</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@500;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Allura&family=Libre+Franklin:wght@500;700;800;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js">
 
 /* V4.9.3 PDF clone patch: preserve smart crop in the actual PDF */
@@ -510,13 +510,8 @@ body.print-mode .report-footer {
         </div>
 
         <div>
-          <label class="field-label">Tandatangan (imej, pilihan)</label>
-          <div id="sigPreviewWrap" style="display:none;position:relative;width:140px;margin-bottom:8px">
-            <img id="sigPreviewImg" style="max-width:140px;max-height:60px;object-fit:contain" />
-            <button onclick="removeSignature()" style="position:absolute;top:-6px;right:-6px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer">✕</button>
-          </div>
-          <button type="button" id="sigUploadBtn" onclick="document.getElementById('sigInput').click()" style="font-size:11.5px;padding:7px 12px;border-radius:8px;border:1.5px dashed #c7c4b8;background:#fafaf8;cursor:pointer;color:#6b6b6b">🖊️ Muat naik gambar tandatangan</button>
-          <input type="file" id="sigInput" accept="image/*" hidden />
+          <label class="field-label">Tandatangan</label>
+          <div style="font-size:11.5px;color:#8a8a8a;padding:7px 0 2px">Nama akan dipaparkan automatik dalam gaya tandatangan.</div>
         </div>
       </div>
 
@@ -569,7 +564,7 @@ body.print-mode .report-footer {
         <div class="sig-wrap" style="margin-top:18px;display:flex;justify-content:center">
           <div style="text-align:center;max-width:90%">
             <div style="font-size:11.5px;color:#8a8a8a;margin-bottom:6px">Disediakan oleh,</div>
-            <div id="sigSlot" style="height:34px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:4px"></div>
+            <div id="sigSlot" style="height:38px;display:flex;align-items:flex-end;justify-content:center;margin-bottom:4px;overflow:hidden"></div>
             <div style="width:fit-content;max-width:100%;margin:0 auto;border-top:1.5px solid #1a1a1a;padding-top:6px">
               <div id="p_nama" style="font-size:13px;font-weight:700;font-family:'Libre Franklin',sans-serif;white-space:nowrap">Nama Guru</div>
               <div id="p_jawatan" style="font-size:11px;color:#8a8a8a;white-space:nowrap">Jawatan</div>
@@ -598,7 +593,7 @@ const UNITS = {
 
 let currentUnit = "kurikulum";
 let photos = [];
-let signatureImg = null;
+let photoCropPositions = [];
 
 const fieldIds = ["tajuk","tarikh","masa","tempat","sasaran","anjuran","aktiviti","kekuatan","cabaran","penambahbaikan","nama","jawatan"];
 
@@ -620,8 +615,7 @@ function switchUnit(key) {
   currentUnit = key;
   photos = [];
   fieldIds.forEach(id => { const el = document.getElementById("f_" + id); if (el) el.value = ""; });
-  signatureImg = null;
-  document.getElementById("sigPreviewWrap").style.display = "none";
+  photoCropPositions = [];
   document.getElementById("statusBox").innerHTML = "";
   render();
 }
@@ -631,6 +625,10 @@ function refCode() {
   return "26/" + n;
 }
 let currentRef = refCode();
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+}
 
 function render() {
   const cfg = UNITS[currentUnit];
@@ -701,7 +699,10 @@ function render() {
   document.getElementById("p_jawatan").textContent = document.getElementById("f_jawatan").value || "Jawatan";
 
   const sigSlot = document.getElementById("sigSlot");
-  sigSlot.innerHTML = signatureImg ? `<img src="${signatureImg}" style="max-height:44px;max-width:150px;object-fit:contain" />` : "";
+  const namaSign = document.getElementById("f_nama").value.trim();
+  sigSlot.innerHTML = namaSign
+    ? `<span style="font-family:'Allura',cursive;font-size:31px;line-height:1;color:#1a1a1a;white-space:nowrap;display:inline-block">${escapeHtml(namaSign)}</span>`
+    : "";
 
   renderPreviewPhotos();
 }
@@ -756,6 +757,7 @@ function renderPreviewPhotos() {
   grid.innerHTML = "";
 
   // SEMUA UNIT sentiasa mempunyai 4 slot gambar yang sama saiz.
+  // Smart crop ringan: hanya mengira focal position daripada imej, tanpa AI/model berat.
   for (let i = 0; i < 4; i++) {
     const cell = document.createElement("div");
     cell.style.cssText = [
@@ -769,16 +771,30 @@ function renderPreviewPhotos() {
       "min-height:0"
     ].join(";");
 
-    const badge = `<span style="position:absolute;top:5px;left:5px;background:${cfg.color};color:#fff;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:2">${i + 1}</span>`;
+    const badge = document.createElement("span");
+    badge.textContent = i + 1;
+    badge.style.cssText = `position:absolute;top:5px;left:5px;background:${cfg.color};color:#fff;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;z-index:2`;
+    cell.appendChild(badge);
 
     if (photos[i]) {
-      cell.innerHTML = badge;
-      cell.style.backgroundImage = `url(${photos[i]})`;
-      cell.style.backgroundSize = "cover";
-      cell.style.backgroundRepeat = "no-repeat";
-      cell.style.backgroundPosition = "center";
+      const img = document.createElement("img");
+      img.src = photos[i];
+      img.alt = "Gambar aktiviti";
+      img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block";
+      const applyCrop = () => {
+        const pos = smartCropPosition(img);
+        photoCropPositions[i] = pos;
+        img.style.objectPosition = pos;
+        cell.dataset.smartPosition = pos;
+      };
+      if (img.complete) applyCrop();
+      else img.addEventListener("load", applyCrop, { once: true });
+      cell.appendChild(img);
     } else {
-      cell.innerHTML = `${badge}<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:${cfg.color}66;font-size:18px">🖼</div>`;
+      const empty = document.createElement("div");
+      empty.style.cssText = `width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:${cfg.color}66;font-size:18px`;
+      empty.textContent = "🖼";
+      cell.appendChild(empty);
     }
     grid.appendChild(cell);
   }
@@ -797,6 +813,7 @@ document.getElementById("photoInput").addEventListener("change", (e) => {
     const reader = new FileReader();
     reader.onload = () => {
       photos.push(reader.result);
+      photoCropPositions.push(null);
       loaded++;
       if (loaded === files.length) render();
     };
@@ -804,26 +821,6 @@ document.getElementById("photoInput").addEventListener("change", (e) => {
   });
   e.target.value = "";
 });
-
-document.getElementById("sigInput").addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    signatureImg = reader.result;
-    document.getElementById("sigPreviewImg").src = signatureImg;
-    document.getElementById("sigPreviewWrap").style.display = "block";
-    render();
-  };
-  reader.readAsDataURL(file);
-  e.target.value = "";
-});
-
-function removeSignature() {
-  signatureImg = null;
-  document.getElementById("sigPreviewWrap").style.display = "none";
-  render();
-}
 
 fieldIds.forEach(id => {
   document.addEventListener("input", (e) => {
@@ -881,6 +878,7 @@ async function janaAI(btn) {
 // Jana canvas dalam layout A4 TETAP (794x1123px) tak kira saiz skrin peranti.
 // Saiz teks dan 4 gambar dikekalkan stabil; ruang bawah dirapikan supaya tandatangan dan nama kekal kelihatan.
 async function renderA4Canvas() {
+  if (document.fonts && document.fonts.ready) await document.fonts.ready;
   // Layout PDF dikunci kepada A4 794 x 1123 px.
   // Tidak bergantung kepada saiz skrin laptop/telefon.
   return await html2canvas(document.getElementById("reportCard"), {
@@ -1000,9 +998,10 @@ async function renderA4Canvas() {
         if (src) {
           const img = doc.createElement("img");
           img.src = src;
+          const pos = c.dataset.smartPosition || photoCropPositions[Array.from(grid.children).indexOf(c)] || "50% 45%";
           img.style.cssText =
             "position:absolute;top:0;left:0;width:100%;height:100%;" +
-            "object-fit:cover;object-position:center center;display:block;";
+            "object-fit:cover;object-position:" + pos + ";display:block;";
           c.appendChild(img);
         }
       });
@@ -1114,22 +1113,58 @@ function smartCropPosition(img) {
   try {
     const w = img.naturalWidth || img.width;
     const h = img.naturalHeight || img.height;
-    if (!w || !h) return '50% 50%';
+    if (!w || !h) return "50% 45%";
 
     const ratio = w / h;
+    // Fallback yang sangat ringan jika canvas tidak boleh membaca imej.
+    let fallback = ratio < 0.78 ? 38 : (ratio > 1.85 ? 42 : 45);
 
-    // For portrait images, keep the upper-middle area so faces/activities
-    // are less likely to be lost while avoiding excessive ceiling/ground.
-    if (ratio < 0.78) return '50% 38%';
+    // Analisis mini 40x40 sahaja: cari jalur menegak yang paling banyak
+    // detail/warna kulit. Tiada AI, tiada library tambahan, sangat ringan.
+    try {
+      const canvas = document.createElement("canvas");
+      const size = 40;
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return `50% ${fallback}%`;
+      ctx.drawImage(img, 0, 0, size, size);
+      const data = ctx.getImageData(0, 0, size, size).data;
+      const rowScore = new Array(size).fill(0);
 
-    // Very wide landscape photos: bias slightly upward to avoid losing
-    // people/activities at the bottom.
-    if (ratio > 1.85) return '50% 42%';
+      for (let y = 1; y < size - 1; y++) {
+        let score = 0;
+        for (let x = 1; x < size - 1; x++) {
+          const i = (y * size + x) * 4;
+          const r = data[i], g = data[i + 1], b = data[i + 2];
+          const up = ((y - 1) * size + x) * 4;
+          const left = (y * size + x - 1) * 4;
+          const edge = Math.abs(r - data[up]) + Math.abs(g - data[up + 1]) + Math.abs(b - data[up + 2])
+                     + Math.abs(r - data[left]) + Math.abs(g - data[left + 1]) + Math.abs(b - data[left + 2]);
+          const skin = (r > 80 && g > 45 && b > 25 && r > g * 1.12 && g > b * 1.05) ? 18 : 0;
+          score += Math.min(edge, 180) + skin;
+        }
+        rowScore[y] = score;
+      }
 
-    // Normal landscape/square.
-    return '50% 45%';
+      // Lebar jalur yang dinilai bergantung kepada nisbah crop.
+      const visibleRows = Math.max(10, Math.min(40, Math.round(size * Math.min(1, ratio / 1.9))));
+      let bestY = Math.floor(size / 2);
+      let bestScore = -Infinity;
+      for (let center = Math.floor(visibleRows / 2); center <= size - Math.ceil(visibleRows / 2); center++) {
+        let score = 0;
+        for (let y = center - Math.floor(visibleRows / 2); y <= center + Math.floor(visibleRows / 2); y++) score += rowScore[y] || 0;
+        // Sedikit keutamaan kepada bahagian atas supaya kepala/aktiviti tidak hilang.
+        score += (size / 2 - center) * 3;
+        if (score > bestScore) { bestScore = score; bestY = center; }
+      }
+
+      const pos = Math.max(22, Math.min(58, Math.round((bestY / size) * 100)));
+      return `50% ${pos}%`;
+    } catch (e) {
+      return `50% ${fallback}%`;
+    }
   } catch (e) {
-    return '50% 50%';
+    return "50% 45%";
   }
 }
 
