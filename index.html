@@ -2,8 +2,8 @@
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | FINAL SIGNATURE GAP + SMALL FOOTER -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | SIGNATURE GAP + SMALLER FOOTER ONLY -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 FINAL | RESPONSIVE SCREEN | PDF A4 LOCKED -->
-<!-- SKGG LAPORAN SEKOLAH BUILD: V5.1 | A4 LOCKED | 4 PHOTO | SMART CROP 2.0 + SHORT SIGNATURE -->
-<!-- SKGG LAPORAN SEKOLAH BUILD: V5.1 | 4 GAMBAR | SMART CROP 2.0 | SHORT SIGNATURE -->
+<!-- SKGG LAPORAN SEKOLAH BUILD: V5.2 | A4 LOCKED | 4 PHOTO | REAL COVER CROP + SHORT SIGNATURE -->
+<!-- SKGG LAPORAN SEKOLAH BUILD: V5.2 | 4 GAMBAR | REAL COVER CROP | SHORT SIGNATURE -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | 4 GAMBAR | A4 LOCKED -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | 4 GAMBAR | 3 UNIT | TIADA MEDAN KHAS UNIT -->
 <!DOCTYPE html>
@@ -792,14 +792,19 @@ function renderPreviewPhotos() {
       const img = document.createElement("img");
       img.src = photos[i];
       img.alt = "Gambar aktiviti";
-      img.style.cssText = "position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block";
+      img.style.cssText = "position:absolute;left:0;top:0;max-width:none;max-height:none;width:auto;height:auto;display:block;transform-origin:0 0";
       const applyCrop = () => {
-        const pos = smartCropPosition(img);
+        const focus = analyzeSmartCrop(img);
+        const pos = `${Math.round(focus.x * 100)}% ${Math.round(focus.y * 100)}%`;
         photoCropPositions[i] = pos;
-        img.style.objectPosition = pos;
         cell.dataset.smartPosition = pos;
+        cell.dataset.cropX = focus.x;
+        cell.dataset.cropY = focus.y;
+        cell.dataset.sourceWidth = img.naturalWidth || img.width || 0;
+        cell.dataset.sourceHeight = img.naturalHeight || img.height || 0;
+        applyCoverTransform(img, cell, focus.x, focus.y);
       };
-      if (img.complete) applyCrop();
+      if (img.complete && img.naturalWidth) applyCrop();
       else img.addEventListener("load", applyCrop, { once: true });
       cell.appendChild(img);
     } else {
@@ -1010,11 +1015,25 @@ async function renderA4Canvas() {
         if (src) {
           const img = doc.createElement("img");
           img.src = src;
-          const pos = c.dataset.smartPosition || photoCropPositions[Array.from(grid.children).indexOf(c)] || "50% 45%";
+          const cropX = parseFloat(c.dataset.cropX);
+          const cropY = parseFloat(c.dataset.cropY);
+          const fallbackPos = c.dataset.smartPosition || photoCropPositions[Array.from(grid.children).indexOf(c)] || "50% 45%";
+          const parsed = fallbackPos.match(/([0-9.]+)%\s+([0-9.]+)%/);
+          const fx = Number.isFinite(cropX) ? cropX : (parsed ? Number(parsed[1]) / 100 : 0.5);
+          const fy = Number.isFinite(cropY) ? cropY : (parsed ? Number(parsed[2]) / 100 : 0.5);
+          const sw = Number(c.dataset.sourceWidth) || 0;
+          const sh = Number(c.dataset.sourceHeight) || 0;
           img.style.cssText =
-            "position:absolute;top:0;left:0;width:100%;height:100%;" +
-            "object-fit:cover;object-position:" + pos + ";display:block;";
+            "position:absolute;left:0;top:0;max-width:none;max-height:none;" +
+            "width:auto;height:auto;display:block;transform-origin:0 0;";
           c.appendChild(img);
+          const applyPdfCrop = () => {
+            const naturalW = sw || img.naturalWidth || img.width;
+            const naturalH = sh || img.naturalHeight || img.height;
+            applyCoverTransform(img, c, fx, fy, naturalW, naturalH);
+          };
+          if (img.complete && img.naturalWidth) applyPdfCrop();
+          else img.addEventListener("load", applyPdfCrop, { once: true });
         }
       });
 
@@ -1123,15 +1142,14 @@ render();
    - Same algorithm on laptop, phone and PDF
    ============================================================ */
 
-function smartCropPosition(img) {
+function analyzeSmartCrop(img) {
   try {
     const w = img.naturalWidth || img.width;
     const h = img.naturalHeight || img.height;
-    if (!w || !h) return "50% 50%";
+    if (!w || !h) return { x: 0.5, y: 0.5 };
 
     const ratio = w / h;
-    // Fallback stabil jika analisis canvas tidak tersedia.
-    const fallbackY = ratio < 0.78 ? 42 : (ratio > 1.85 ? 45 : 48);
+    const fallbackY = ratio < 0.78 ? 0.42 : (ratio > 1.85 ? 0.45 : 0.48);
 
     try {
       const canvas = document.createElement("canvas");
@@ -1139,15 +1157,12 @@ function smartCropPosition(img) {
       canvas.width = size;
       canvas.height = size;
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return `50% ${fallbackY}%`;
+      if (!ctx) return { x: 0.5, y: fallbackY };
       ctx.drawImage(img, 0, 0, size, size);
       const data = ctx.getImageData(0, 0, size, size).data;
 
-      // Skor saliency ringan: edge/detail + tona kulit + local contrast.
-      // Tiada model AI dan tiada library tambahan.
       const score = new Float32Array(size * size);
       let total = 0, sumX = 0, sumY = 0;
-
       const luminance = (r, g, b) => 0.299 * r + 0.587 * g + 0.114 * b;
       const idx = (x, y) => (y * size + x) * 4;
 
@@ -1156,29 +1171,21 @@ function smartCropPosition(img) {
           const i = idx(x, y);
           const r = data[i], g = data[i + 1], b = data[i + 2];
           const up = idx(x, y - 1), dn = idx(x, y + 1), lf = idx(x - 1, y), rt = idx(x + 1, y);
-
           const lum = luminance(r, g, b);
           const edge = Math.abs(lum - luminance(data[up], data[up + 1], data[up + 2]))
                      + Math.abs(lum - luminance(data[dn], data[dn + 1], data[dn + 2]))
                      + Math.abs(lum - luminance(data[lf], data[lf + 1], data[lf + 2]))
                      + Math.abs(lum - luminance(data[rt], data[rt + 1], data[rt + 2]));
 
-          // Tona kulit dibuat bonus sederhana, bukan face detection.
-          const skin = (r > 70 && g > 35 && b > 20 &&
-                        r > g * 1.10 && g > b * 1.03 &&
-                        (r - b) > 25) ? 42 : 0;
-
-          // Local contrast supaya kawasan objek tidak rata lebih menonjol.
+          const skin = (r > 70 && g > 35 && b > 20 && r > g * 1.10 && g > b * 1.03 && (r - b) > 25) ? 42 : 0;
           const local = Math.abs(lum - luminance(data[idx(x - 2, y)], data[idx(x - 2, y) + 1], data[idx(x - 2, y) + 2]))
                       + Math.abs(lum - luminance(data[idx(x + 2, y)], data[idx(x + 2, y) + 1], data[idx(x + 2, y) + 2]))
                       + Math.abs(lum - luminance(data[idx(x, y - 2)], data[idx(x, y - 2) + 1], data[idx(x, y - 2) + 2]))
                       + Math.abs(lum - luminance(data[idx(x, y + 2)], data[idx(x, y + 2) + 1], data[idx(x, y + 2) + 2]));
 
-          // Center bias sederhana supaya crop tidak melompat ke kawasan kecil/noise.
           const nx = (x - size / 2) / (size / 2);
           const ny = (y - size / 2) / (size / 2);
           const centerBias = Math.max(0, 1 - Math.sqrt(nx * nx + ny * ny)) * 7;
-
           const s = Math.min(255, edge * 0.9 + local * 0.35 + skin + centerBias);
           score[y * size + x] = s;
           total += s;
@@ -1187,50 +1194,74 @@ function smartCropPosition(img) {
         }
       }
 
-      if (!total) return `50% ${fallbackY}%`;
+      if (!total) return { x: 0.5, y: fallbackY };
 
       let focalX = sumX / total / size;
       let focalY = sumY / total / size;
-
-      // Jangan benarkan kawasan ekstrem seperti langit kosong/ground kosong
-      // menarik focal point terlalu jauh dari kawasan tengah.
       focalX = Math.max(0.18, Math.min(0.82, focalX));
       focalY = Math.max(0.22, Math.min(0.78, focalY));
 
-      // Untuk foto aktiviti sekolah, sedikit keutamaan kepada bahagian atas
-      // membantu kepala/muka kekal dalam frame tanpa memotong terlalu tinggi.
       if (ratio < 0.9) focalY = focalY * 0.82 + 0.18 * 0.50;
       else if (ratio > 1.55) focalY = focalY * 0.90 + 0.10 * 0.48;
 
-      // Kira object-position berdasarkan focal point dan saiz crop sebenar.
-      // Output ialah titik CSS yang akan menjadikan focal point berada hampir
-      // di tengah kawasan yang kelihatan.
-      const cropW = Math.min(1, 1 / ratio);
-      const cropH = Math.min(1, ratio);
-      const maxOffsetX = 1 - cropW;
-      const maxOffsetY = 1 - cropH;
-
-      const posX = maxOffsetX < 0.001 ? 50 : ((focalX - cropW / 2) / maxOffsetX) * 100;
-      const posY = maxOffsetY < 0.001 ? 50 : ((focalY - cropH / 2) / maxOffsetY) * 100;
-
-      const clampX = Math.max(0, Math.min(100, Math.round(posX)));
-      const clampY = Math.max(0, Math.min(100, Math.round(posY)));
-      return `${clampX}% ${clampY}%`;
+      return { x: focalX, y: focalY };
     } catch (e) {
-      return `50% ${fallbackY}%`;
+      return { x: 0.5, y: fallbackY };
     }
   } catch (e) {
-    return "50% 50%";
+    return { x: 0.5, y: 0.5 };
   }
+}
+
+function smartCropPosition(img) {
+  const f = analyzeSmartCrop(img);
+  return `${Math.round(f.x * 100)}% ${Math.round(f.y * 100)}%`;
+}
+
+/*
+ * REAL cover crop for preview + html2canvas.
+ * We do not depend on CSS object-fit because html2canvas can render
+ * object-fit inconsistently. The image is physically scaled and translated
+ * inside an overflow:hidden box, guaranteeing that the PDF is cropped.
+ */
+function applyCoverTransform(img, box, focalX, focalY, sourceW, sourceH) {
+  if (!img || !box) return;
+  const sw = sourceW || img.naturalWidth || img.width;
+  const sh = sourceH || img.naturalHeight || img.height;
+  const bw = box.clientWidth || box.offsetWidth;
+  const bh = box.clientHeight || box.offsetHeight;
+  if (!sw || !sh || !bw || !bh) return;
+
+  const scale = Math.max(bw / sw, bh / sh);
+  const drawW = sw * scale;
+  const drawH = sh * scale;
+  const maxX = Math.max(0, drawW - bw);
+  const maxY = Math.max(0, drawH - bh);
+
+  const fx = Math.max(0, Math.min(1, Number(focalX) || 0.5));
+  const fy = Math.max(0, Math.min(1, Number(focalY) || 0.5));
+  const left = -(drawW * fx - bw * 0.5);
+  const top = -(drawH * fy - bh * 0.5);
+  const tx = Math.max(-maxX, Math.min(0, left));
+  const ty = Math.max(-maxY, Math.min(0, top));
+
+  img.style.width = sw + "px";
+  img.style.height = sh + "px";
+  img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  img.style.transformOrigin = "0 0";
 }
 
 function applySmartCrop(img) {
   if (!img) return;
   const apply = () => {
-    img.style.objectFit = 'cover';
-    img.style.objectPosition = smartCropPosition(img);
+    const f = analyzeSmartCrop(img);
+    img.dataset.cropX = f.x;
+    img.dataset.cropY = f.y;
+    const box = img.parentElement;
+    applyCoverTransform(img, box, f.x, f.y);
+    img.style.objectPosition = `${Math.round(f.x * 100)}% ${Math.round(f.y * 100)}%`;
   };
-  if (img.complete) apply();
+  if (img.complete && (img.naturalWidth || img.width)) apply();
   else img.addEventListener('load', apply, { once: true });
 }
 
@@ -1263,8 +1294,7 @@ document.addEventListener('DOMContentLoaded', applySmartCropToAllPhotos);
     } else {
       document.querySelectorAll('.photo-slot img, .photo-grid img, #photoGrid img')
         .forEach(function(img) {
-          img.style.objectFit = 'cover';
-          img.style.objectPosition = '50% 42%';
+          applySmartCrop(img);
         });
     }
   }
@@ -1278,6 +1308,16 @@ document.addEventListener('DOMContentLoaded', applySmartCropToAllPhotos);
     grid.__v48Observer = obs;
   }
 })();
+
+window.addEventListener("resize", function(){
+  document.querySelectorAll('.photo-slot img, .photo-grid img, #photoGrid img').forEach(function(img){
+    if (img.dataset.cropX && img.dataset.cropY) {
+      applyCoverTransform(img, img.parentElement, parseFloat(img.dataset.cropX), parseFloat(img.dataset.cropY));
+    } else {
+      applySmartCrop(img);
+    }
+  });
+});
 </script>
 
 </body>
