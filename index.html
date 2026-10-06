@@ -2,8 +2,8 @@
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | FINAL SIGNATURE GAP + SMALL FOOTER -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | SIGNATURE GAP + SMALLER FOOTER ONLY -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 FINAL | RESPONSIVE SCREEN | PDF A4 LOCKED -->
-<!-- SKGG LAPORAN SEKOLAH BUILD: V5.2 | A4 LOCKED | 4 PHOTO | REAL COVER CROP + SHORT SIGNATURE -->
-<!-- SKGG LAPORAN SEKOLAH BUILD: V5.2 | 4 GAMBAR | REAL COVER CROP | SHORT SIGNATURE -->
+<!-- SKGG LAPORAN SEKOLAH BUILD: V5.3 | A4 LOCKED | 4 PHOTO | REAL COVER CROP + SHORT SIGNATURE -->
+<!-- SKGG LAPORAN SEKOLAH BUILD: V5.3 | 4 GAMBAR | REAL COVER CROP | SHORT SIGNATURE -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | 4 GAMBAR | A4 LOCKED -->
 <!-- SKGG LAPORAN SEKOLAH BUILD: V4.9.3 | 4 GAMBAR | 3 UNIT | TIADA MEDAN KHAS UNIT -->
 <!DOCTYPE html>
@@ -421,6 +421,24 @@ body.print-mode .report-footer {
   margin-top: 3px !important;
   padding-top: 3px !important;
   padding-bottom: 3px !important;
+}
+
+/* V5.3 PHOTO INPUT FIX — left upload thumbnails stay normal.
+   Smart crop is reserved for the report preview/PDF only. */
+#photoGrid .photo-slot img {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  transform: none !important;
+  transform-origin: center center !important;
+  object-fit: cover !important;
+  object-position: 50% 50% !important;
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
 }
 </style>
 </head>
@@ -1266,7 +1284,9 @@ function applySmartCrop(img) {
 }
 
 function applySmartCropToAllPhotos() {
-  document.querySelectorAll('.photo-slot img, .photo-grid img, #photoGrid img').forEach(applySmartCrop);
+  // V5.3: Smart Crop is intentionally limited to the report preview.
+  // The left upload panel must remain a normal thumbnail grid.
+  document.querySelectorAll('#previewPhotoGrid img').forEach(applySmartCrop);
 }
 
 // Re-apply after dynamic photo rendering.
@@ -1292,8 +1312,7 @@ document.addEventListener('DOMContentLoaded', applySmartCropToAllPhotos);
     if (typeof applySmartCropToAllPhotos === 'function') {
       applySmartCropToAllPhotos();
     } else {
-      document.querySelectorAll('.photo-slot img, .photo-grid img, #photoGrid img')
-        .forEach(function(img) {
+      document.querySelectorAll('#previewPhotoGrid img').forEach(function(img) {
           applySmartCrop(img);
         });
     }
@@ -1310,7 +1329,7 @@ document.addEventListener('DOMContentLoaded', applySmartCropToAllPhotos);
 })();
 
 window.addEventListener("resize", function(){
-  document.querySelectorAll('.photo-slot img, .photo-grid img, #photoGrid img').forEach(function(img){
+  document.querySelectorAll('#previewPhotoGrid img').forEach(function(img){
     if (img.dataset.cropX && img.dataset.cropY) {
       applyCoverTransform(img, img.parentElement, parseFloat(img.dataset.cropX), parseFloat(img.dataset.cropY));
     } else {
