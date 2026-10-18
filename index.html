@@ -137,7 +137,7 @@
   .report-card { background: #fff; border-radius: 14px; box-shadow: 0 8px 30px rgba(13,43,78,0.14); overflow: hidden; border: 1px solid #ece9e0; max-width: 760px; margin: 0 auto; }
   .report-header { padding: 20px 26px; position: relative; overflow: hidden; }
   .report-body { padding: 24px 26px 28px; }
-  .report-body p { max-width: 640px; text-align: justify; text-align-last: left; }
+  .report-body p { max-width: none; width: 100%; box-sizing: border-box; text-align: justify; text-align-last: left; }
   .info-row { display: flex; border-bottom: 1px solid #eceae2; padding: 7px 0; }
   .info-label { width: 110px; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8a8a8a; text-transform: uppercase; letter-spacing: 0.5px; padding-top: 2px; }
   .info-value { font-family: 'Inter', sans-serif; font-size: 13.5px; color: #1a1a1a; font-weight: 500; }
@@ -912,16 +912,16 @@ async function janaAI(btn) {
   }
 }
 
-// Jana canvas dalam layout A4 TETAP (794x1123px) tak kira saiz skrin peranti.
-// Saiz teks dan 4 gambar dikekalkan stabil; ruang bawah dirapikan supaya tandatangan dan nama kekal kelihatan.
 let pdfContentOverflow = false;
 
+// Jana canvas dalam layout A4 TETAP (794x1123px) tak kira saiz skrin peranti.
+// Saiz teks dan 4 gambar dikekalkan stabil; ruang bawah dirapikan supaya tandatangan dan nama kekal kelihatan.
 async function renderA4Canvas() {
   pdfContentOverflow = false;
   if (document.fonts && document.fonts.ready) await document.fonts.ready;
   // Layout PDF dikunci kepada A4 794 x 1123 px.
   // Tidak bergantung kepada saiz skrin laptop/telefon.
-  return await html2canvas(document.getElementById("reportCard"), {
+  const canvas = await html2canvas(document.getElementById("reportCard"), {
     scale: 2,
     useCORS: true,
     backgroundColor: "#ffffff",
@@ -1067,19 +1067,26 @@ async function renderA4Canvas() {
         sigWrap.style.setProperty("flex", "0 0 auto", "important");
       }
 
-      // Semak ruang sebenar A4 selepas semua gaya PDF dikenakan.
-      // Tidak mengubah saiz/font/kotak; hanya mengesan jika blok tandatangan terkeluar.
-      const bodyRect = body ? body.getBoundingClientRect() : null;
+      // Semak overflow selepas semua gaya A4 digunakan. Jika tandatangan
+      // atau mana-mana bahagian kandungan keluar daripada ruang badan A4,
+      // hentikan eksport supaya PDF tidak memotong kandungan.
+      const bodyRect = body.getBoundingClientRect();
       const sigRect = sigWrap ? sigWrap.getBoundingClientRect() : null;
-      const lastContent = sigWrap || grid;
-      const lastRect = lastContent ? lastContent.getBoundingClientRect() : null;
-      pdfContentOverflow = !!(bodyRect && lastRect && lastRect.bottom > bodyRect.bottom + 1);
-      if (sigRect && bodyRect && sigRect.bottom > bodyRect.bottom + 1) pdfContentOverflow = true;
+      const contentChildren = Array.from(body.children).filter(el => el.offsetParent !== null);
+      const lastContentRect = contentChildren.length
+        ? contentChildren[contentChildren.length - 1].getBoundingClientRect()
+        : null;
+      const limitBottom = bodyRect.bottom - 2;
+      if ((sigRect && sigRect.bottom > limitBottom) ||
+          (lastContentRect && lastContentRect.bottom > limitBottom)) {
+        pdfContentOverflow = true;
+      }
     },
   });
   if (pdfContentOverflow) {
     throw new Error("KANDUNGAN_TERLALU_PANJANG");
   }
+  return canvas;
 }
 
 function canvasToA4Pdf(canvas, quality) {
@@ -1125,7 +1132,7 @@ async function sendTelegram() {
     showStatus(true, "Laporan dihantar ke Telegram — semak group sekolah.");
   } catch (err) {
     if (err && err.message === "KANDUNGAN_TERLALU_PANJANG") {
-      showStatus(false, "Kandungan laporan terlalu panjang untuk ruang A4. Sila ringkaskan bahagian Aktiviti, Kekuatan, Cabaran atau Penambahbaikan sebelum menghantar PDF. Saiz reka bentuk tidak diubah.");
+      showStatus(false, "AMARAN: Kandungan laporan terlalu panjang untuk ruang A4. Ringkaskan bahagian Aktiviti, Kekuatan, Cabaran/Isu atau Penambahbaikan sebelum menghantar. Reka bentuk A4 dan saiz font tidak diubah.");
     } else {
       showStatus(false, "Gagal hantar: " + err.message);
     }
@@ -1161,7 +1168,7 @@ async function downloadPdf() {
     canvasToA4Pdf(canvas, 0.95).save(buildFileName());
   } catch (err) {
     if (err && err.message === "KANDUNGAN_TERLALU_PANJANG") {
-      showStatus(false, "Kandungan laporan terlalu panjang untuk ruang A4. Sila ringkaskan bahagian Aktiviti, Kekuatan, Cabaran atau Penambahbaikan sebelum memuat turun PDF. Saiz reka bentuk tidak diubah.");
+      showStatus(false, "AMARAN: Kandungan laporan terlalu panjang untuk ruang A4. Ringkaskan bahagian Aktiviti, Kekuatan, Cabaran/Isu atau Penambahbaikan sebelum memuat turun PDF. Reka bentuk A4 dan saiz font tidak diubah.");
     } else {
       showStatus(false, "Gagal jana PDF: " + err.message);
     }
