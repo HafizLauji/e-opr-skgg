@@ -914,7 +914,10 @@ async function janaAI(btn) {
 
 // Jana canvas dalam layout A4 TETAP (794x1123px) tak kira saiz skrin peranti.
 // Saiz teks dan 4 gambar dikekalkan stabil; ruang bawah dirapikan supaya tandatangan dan nama kekal kelihatan.
+let pdfContentOverflow = false;
+
 async function renderA4Canvas() {
+  pdfContentOverflow = false;
   if (document.fonts && document.fonts.ready) await document.fonts.ready;
   // Layout PDF dikunci kepada A4 794 x 1123 px.
   // Tidak bergantung kepada saiz skrin laptop/telefon.
@@ -1063,8 +1066,20 @@ async function renderA4Canvas() {
         sigWrap.style.setProperty("padding-top", "0", "important");
         sigWrap.style.setProperty("flex", "0 0 auto", "important");
       }
+
+      // Semak ruang sebenar A4 selepas semua gaya PDF dikenakan.
+      // Tidak mengubah saiz/font/kotak; hanya mengesan jika blok tandatangan terkeluar.
+      const bodyRect = body ? body.getBoundingClientRect() : null;
+      const sigRect = sigWrap ? sigWrap.getBoundingClientRect() : null;
+      const lastContent = sigWrap || grid;
+      const lastRect = lastContent ? lastContent.getBoundingClientRect() : null;
+      pdfContentOverflow = !!(bodyRect && lastRect && lastRect.bottom > bodyRect.bottom + 1);
+      if (sigRect && bodyRect && sigRect.bottom > bodyRect.bottom + 1) pdfContentOverflow = true;
     },
   });
+  if (pdfContentOverflow) {
+    throw new Error("KANDUNGAN_TERLALU_PANJANG");
+  }
 }
 
 function canvasToA4Pdf(canvas, quality) {
@@ -1109,7 +1124,11 @@ async function sendTelegram() {
 
     showStatus(true, "Laporan dihantar ke Telegram — semak group sekolah.");
   } catch (err) {
-    showStatus(false, "Gagal hantar: " + err.message);
+    if (err && err.message === "KANDUNGAN_TERLALU_PANJANG") {
+      showStatus(false, "Kandungan laporan terlalu panjang untuk ruang A4. Sila ringkaskan bahagian Aktiviti, Kekuatan, Cabaran atau Penambahbaikan sebelum menghantar PDF. Saiz reka bentuk tidak diubah.");
+    } else {
+      showStatus(false, "Gagal hantar: " + err.message);
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = "➤ Hantar ke Telegram";
@@ -1141,7 +1160,11 @@ async function downloadPdf() {
     const canvas = await renderA4Canvas();
     canvasToA4Pdf(canvas, 0.95).save(buildFileName());
   } catch (err) {
-    showStatus(false, "Gagal jana PDF: " + err.message);
+    if (err && err.message === "KANDUNGAN_TERLALU_PANJANG") {
+      showStatus(false, "Kandungan laporan terlalu panjang untuk ruang A4. Sila ringkaskan bahagian Aktiviti, Kekuatan, Cabaran atau Penambahbaikan sebelum memuat turun PDF. Saiz reka bentuk tidak diubah.");
+    } else {
+      showStatus(false, "Gagal jana PDF: " + err.message);
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = "⬇ Muat Turun PDF";
