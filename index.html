@@ -668,6 +668,7 @@ body.print-mode .report-footer {
         <button class="btn-primary" id="btnDownload" onclick="downloadPdf()">⬇ Muat Turun PDF</button>
         <button class="btn-outline" id="btnDownloadImage" onclick="downloadImage()">🖼 Muat Turun PNG</button>
         <button class="btn-outline" id="btnTelegram" onclick="sendTelegram()">➤ Hantar ke Telegram</button>
+        <button class="btn-outline" id="btnNewReport" onclick="resetCurrentReport()" type="button" style="border:1px solid #b94a48;color:#a33432;background:#fff">🆕 Pelaporan Baharu</button>
       </div>
       <div id="statusBox"></div>
     </div>
@@ -816,6 +817,58 @@ function restoreDraft(unit) {
 function scheduleDraftSave() {
   clearTimeout(draftSaveTimer);
   draftSaveTimer = setTimeout(() => saveCurrentDraft(false), 350);
+}
+
+// Mulakan laporan baharu untuk unit yang sedang dibuka sahaja.
+// Draf unit lain kekal dalam localStorage; rekod yang telah dihantar tidak disentuh.
+function resetCurrentReport() {
+  const unitLabel = UNITS[currentUnit].label;
+  const confirmed = window.confirm(
+    `Mulakan pelaporan baharu untuk unit ${unitLabel}?\n\n` +
+    `Semua medan dan gambar bagi unit ini akan dikosongkan, dan draf unit ini akan dipadam.\n` +
+    `Draf unit lain serta rekod yang telah dihantar tidak akan dipadam.`
+  );
+  if (!confirmed) return;
+
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = null;
+  try { closeImageEditor(); } catch (e) { /* Teruskan reset walaupun editor sudah tertutup. */ }
+
+  fieldIds.forEach(id => {
+    const el = document.getElementById("f_" + id);
+    if (el) el.value = "";
+  });
+
+  photos = [];
+  photoCropPositions = [];
+  photoEdits = [];
+  editingPhotoIndex = -1;
+  editorDraft = null;
+
+  const photoInput = document.getElementById("photoInput");
+  if (photoInput) photoInput.value = "";
+
+  // Padam kunci unit semasa sahaja dan kekalkan semua draf unit lain.
+  let draftCleared = false;
+  try {
+    const allDrafts = readAllDrafts();
+    delete allDrafts[currentUnit];
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(allDrafts));
+    draftCleared = true;
+  } catch (e) {
+    // Maklumkan secara jelas jika pelayar tidak membenarkan pemadaman draf.
+  }
+
+  currentRef = refCode();
+  const statusBox = document.getElementById("statusBox");
+  if (statusBox) statusBox.innerHTML = "";
+  render();
+
+  if (draftCleared) {
+    showStatus(true, `Borang ${unitLabel} telah dikosongkan. Draf unit ini dipadam; draf unit lain kekal.`);
+  } else {
+    showStatus(false, "Borang telah dikosongkan, tetapi draf lama tidak dapat dipadam daripada storan pelayar. Sila semak tetapan storan pelayar.");
+  }
 }
 
 function switchUnit(key) {
