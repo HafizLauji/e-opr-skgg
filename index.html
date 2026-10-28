@@ -1401,6 +1401,25 @@ window.addEventListener("resize", function(){
 </script>
 
 
+
+
+<div id="imageEditorBackdrop" class="image-editor-backdrop" role="dialog" aria-modal="true" aria-label="Edit gambar">
+  <div class="image-editor">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <strong>Edit Gambar Aktiviti</strong><button type="button" onclick="closeImageEditor()" aria-label="Tutup editor" style="border:0;background:transparent;font-size:22px;cursor:pointer">×</button>
+    </div>
+    <div id="imageEditorPreview" class="image-editor-preview"></div>
+    <label for="imageZoom">Zum gambar: <span id="imageZoomLabel">100%</span></label>
+    <input id="imageZoom" type="range" min="100" max="250" step="5" value="100" />
+    <div style="font-size:11px;color:#64748b;margin-top:5px">Seret gambar terus dengan tetikus atau jari untuk mengubah kedudukan. Laraskan zum menggunakan gelangsar.</div>
+    <div class="editor-actions">
+      <button type="button" onclick="resetEditedPhoto()">Reset gambar</button>
+      <button type="button" onclick="closeImageEditor()">Batal</button>
+      <button type="button" class="editor-save" onclick="saveImageEditor()">Simpan perubahan</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // Penyuntingan manual gambar: imej pratonton dibina sekali sahaja supaya seretan tidak menyebabkan hang.
 function clampFocus(v){ return Math.max(0, Math.min(1, v)); }
@@ -1443,8 +1462,8 @@ function updateEditorPreview(){
   const maxX=Math.max(0,dw-bw),maxY=Math.max(0,dh-bh);
   const tx=Math.max(-maxX,Math.min(0,-(dw*editorDraft.x-bw/2)));
   const ty=Math.max(-maxY,Math.min(0,-(dh*editorDraft.y-bh/2)));
-  img.style.width=sw+'px';img.style.height=sh+'px';
-  img.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;
+  img.style.width=dw+'px';img.style.height=dh+'px';
+  img.style.transform=`translate(${tx}px,${ty}px)`;
   document.getElementById('imageZoomLabel').textContent=Math.round((editorDraft.zoom||1)*100)+'%';
 }
 function resetEditedPhoto(){
@@ -1468,7 +1487,7 @@ document.getElementById('imageZoom').addEventListener('input',e=>{
   const box=document.getElementById('imageEditorPreview');
   let drag=null;
   box.addEventListener('pointerdown',e=>{
-    if(!editorDraft || !editorPreviewImage || e.button!==0)return;
+    if(!editorDraft || !editorPreviewImage || (e.pointerType==='mouse' && e.button!==0))return;
     drag={x:e.clientX,y:e.clientY,fx:editorDraft.x,fy:editorDraft.y};
     box.setPointerCapture(e.pointerId);
     e.preventDefault();
@@ -1493,23 +1512,6 @@ document.getElementById('imageZoom').addEventListener('input',e=>{
 })();
 document.getElementById('imageEditorBackdrop').addEventListener('click',e=>{if(e.target.id==='imageEditorBackdrop')closeImageEditor();});
 </script>
-
-<div id="imageEditorBackdrop" class="image-editor-backdrop" role="dialog" aria-modal="true" aria-label="Edit gambar">
-  <div class="image-editor">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-      <strong>Edit Gambar Aktiviti</strong><button type="button" onclick="closeImageEditor()" aria-label="Tutup editor" style="border:0;background:transparent;font-size:22px;cursor:pointer">×</button>
-    </div>
-    <div id="imageEditorPreview" class="image-editor-preview"></div>
-    <label for="imageZoom">Zum gambar: <span id="imageZoomLabel">100%</span></label>
-    <input id="imageZoom" type="range" min="100" max="250" step="5" value="100" />
-    <div style="font-size:11px;color:#64748b;margin-top:5px">Seret gambar terus dengan tetikus atau jari untuk mengubah kedudukan. Laraskan zum menggunakan gelangsar.</div>
-    <div class="editor-actions">
-      <button type="button" onclick="resetEditedPhoto()">Reset gambar</button>
-      <button type="button" onclick="closeImageEditor()">Batal</button>
-      <button type="button" class="editor-save" onclick="saveImageEditor()">Simpan perubahan</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
