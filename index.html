@@ -514,7 +514,7 @@ body.print-mode .report-footer {
 #reportCard #tagGambar{display:none!important}
 #reportCard #previewPhotoGrid{
   position:absolute!important;top:20px!important;right:20px!important;bottom:90px!important;
-  width:41%!important;height:auto!important;max-height:none!important;
+  width:35%!important;height:auto!important;max-height:none!important;
   display:grid!important;grid-template-columns:1fr!important;grid-template-rows:repeat(4,minmax(0,1fr))!important;
   gap:8px!important;align-content:stretch!important;overflow:hidden!important;
 }
@@ -776,7 +776,9 @@ function deriveSignatureName(fullName) {
 function render() {
   const cfg = UNITS[currentUnit];
   renderUnitTabs();
+  const unitGradient = `linear-gradient(115deg, ${cfg.colorDark} 0%, ${cfg.color} 58%, ${cfg.colorDark} 100%)`;
   document.documentElement.style.setProperty("--accent", cfg.color);
+  document.documentElement.style.setProperty("--accent-gradient", unitGradient);
 
   document.getElementById("unitTone").textContent = cfg.tone;
   document.getElementById("unitTone").style.color = cfg.color;
@@ -798,7 +800,7 @@ function render() {
   renderPhotoGrid();
 
   // ---- report preview ----
-  document.getElementById("reportHeader").style.background = cfg.color;
+  document.getElementById("reportHeader").style.background = unitGradient;
   document.getElementById("reportFooter").style.background = cfg.colorDark;
   document.getElementById("refTag").style.color = cfg.color;
   document.getElementById("refTag").innerHTML =
@@ -834,7 +836,8 @@ function render() {
   });
 
   ["tagAktiviti","tagKekuatan","tagCabaran","tagPenambahbaikan","tagGambar"].forEach(id => {
-    document.getElementById(id).style.background = cfg.color;
+    document.getElementById(id).style.background = unitGradient;
+    document.getElementById(id).style.backgroundImage = unitGradient;
   });
   document.getElementById("tagGambar").textContent = `Gambar Aktiviti (4)`;
 
@@ -1152,8 +1155,8 @@ async function renderA4Canvas() {
       body.querySelectorAll("p").forEach(p => {
         p.style.maxWidth = "none";
         p.style.width = "100%";
-        p.style.fontSize = "15px";
-        p.style.lineHeight = "1.45";
+        p.style.fontSize = "18px";
+        p.style.lineHeight = "1.42";
         p.style.margin = "0";
       });
 
@@ -1163,7 +1166,7 @@ async function renderA4Canvas() {
 
       const title = card.querySelector("#p_tajuk");
       if (title) {
-        title.style.fontSize = "17px";
+        title.style.fontSize = "22px";
         title.style.marginBottom = "7px";
         title.style.paddingBottom = "7px";
       }
@@ -1173,7 +1176,7 @@ async function renderA4Canvas() {
         el.style.fontSize = "10.5px";
       });
       card.querySelectorAll(".info-value").forEach(el => {
-        el.style.fontSize = "13.5px";
+        el.style.fontSize = "15.5px";
       });
 
       // TEMPLATE DUA KOLOM: kekalkan 4 gambar menegak seperti pratonton.
@@ -1181,7 +1184,7 @@ async function renderA4Canvas() {
       grid.classList.add("photo-area");
       grid.style.cssText =
         "position:absolute!important;top:20px!important;right:20px!important;bottom:90px!important;" +
-        "left:auto!important;width:41%!important;height:auto!important;max-width:none!important;" +
+        "left:auto!important;width:35%!important;height:auto!important;max-width:none!important;" +
         "max-height:none!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;" +
         "grid-template-rows:repeat(4,minmax(0,1fr))!important;gap:8px!important;" +
         "overflow:hidden!important;align-content:stretch!important;margin:0!important;padding:0!important;";
@@ -1258,7 +1261,7 @@ async function renderA4Canvas() {
       grid.style.setProperty("right", "20px", "important");
       grid.style.setProperty("bottom", "90px", "important");
       grid.style.setProperty("left", "auto", "important");
-      grid.style.setProperty("width", "41%", "important");
+      grid.style.setProperty("width", "35%", "important");
       grid.style.setProperty("height", "auto", "important");
       grid.style.setProperty("display", "grid", "important");
       grid.style.setProperty("grid-template-columns", "minmax(0, 1fr)", "important");
@@ -1765,23 +1768,25 @@ textarea { overflow-anchor:none; }
 </style>
 
 
-<style id="opr-v5-final-layout-fix">
-/* V5: REPORT CONTENT ONLY — do not enlarge data-entry controls */
+<style id="opr-v6-consistent-unit-gradient-and-pdf">
+/* Unit gradient applies consistently to header, all section ribbons and ribbon lines */
 #reportCard { overflow:hidden!important; }
-#reportCard .report-header { background:var(--accent,#247b9b)!important; color:#fff!important; }
+#reportCard .report-header { background:var(--accent-gradient,linear-gradient(115deg,#0D3D7A,#1568C4,#0D3D7A))!important; color:#fff!important; }
 #reportCard .report-header * { color:inherit; }
-/* Make every report ribbon follow the active unit colour, not only the top header */
 #reportCard .ribbon-divider .tag,
-#reportCard .ribbon-divider .line { background:var(--accent,#247b9b)!important; border-color:var(--accent,#247b9b)!important; }
+#reportCard .ribbon-divider .line {
+  background:var(--accent-gradient,linear-gradient(115deg,#0D3D7A,#1568C4,#0D3D7A))!important;
+  background-image:var(--accent-gradient,linear-gradient(115deg,#0D3D7A,#1568C4,#0D3D7A))!important;
+  border-color:var(--accent,#1568C4)!important;
+}
 #reportCard .ribbon-divider .tag { color:#fff!important; }
-#reportCard #p_tajuk { font-size:20px!important; line-height:1.25!important; font-weight:800!important; }
-#reportCard .report-body p,
+#reportCard #p_tajuk { font-size:22px!important; line-height:1.22!important; font-weight:800!important; }
+#reportCard .report-body p { font-size:18px!important; line-height:1.42!important; text-align:justify!important; overflow-wrap:anywhere!important; }
 #reportCard .report-body .info-value,
 #reportCard .report-body .info-row,
-#reportCard .report-body .info-row span { font-size:14px!important; line-height:1.48!important; }
-#reportCard .report-body p { text-align:justify!important; overflow-wrap:anywhere!important; }
-#reportCard #infoRows { font-size:13.5px!important; line-height:1.4!important; }
-/* Match new tall-photo template in preview and print/PDF */
+#reportCard .report-body .info-row span { font-size:15.5px!important; line-height:1.4!important; }
+#reportCard #infoRows { font-size:15.5px!important; line-height:1.4!important; }
+/* One identical photo column geometry in preview and PDF */
 #reportCard #previewPhotoGrid {
   position:absolute!important; top:20px!important; right:20px!important; bottom:90px!important;
   width:35%!important; height:auto!important; max-height:none!important;
@@ -1789,42 +1794,39 @@ textarea { overflow-anchor:none; }
   grid-template-rows:repeat(4,minmax(0,1fr))!important; gap:8px!important;
   overflow:hidden!important; box-sizing:border-box!important;
 }
+#reportCard #previewPhotoGrid > div,
 #reportCard #previewPhotoGrid .photo-slot {
-  width:100%!important; height:100%!important; min-height:0!important; aspect-ratio:auto!important;
-  position:relative!important; overflow:hidden!important; box-sizing:border-box!important;
+  width:100%!important; height:100%!important; min-width:0!important; min-height:0!important;
+  aspect-ratio:auto!important; position:relative!important; overflow:hidden!important; box-sizing:border-box!important;
 }
-#reportCard #previewPhotoGrid .photo-slot img,
 #reportCard #previewPhotoGrid img {
   display:block!important; width:100%!important; height:100%!important;
   min-width:0!important; min-height:0!important; max-width:none!important; max-height:none!important;
   object-fit:cover!important; object-position:50% 42%!important;
 }
-/* Buttons must stay inside each thumbnail and never cover one another */
-#photoGrid .photo-slot { overflow:hidden!important; min-width:0!important; }
+/* Edit button contained inside each upload thumbnail, no overlap outside the card */
+#photoGrid .photo-slot { overflow:hidden!important; min-width:0!important; position:relative!important; }
 #photoGrid .photo-edit-btn {
-  left:4px!important; right:4px!important; bottom:4px!important; width:calc(100% - 8px)!important;
-  max-width:calc(100% - 8px)!important; min-width:0!important; min-height:30px!important;
-  height:auto!important; padding:5px 3px!important; line-height:1.2!important;
-  white-space:normal!important; overflow-wrap:anywhere!important; z-index:5!important;
-  box-sizing:border-box!important; font-size:10px!important;
+  left:4px!important; right:4px!important; bottom:4px!important; width:auto!important;
+  max-width:none!important; min-width:0!important; min-height:32px!important; height:auto!important;
+  padding:5px 3px!important; line-height:1.15!important; white-space:normal!important;
+  overflow-wrap:anywhere!important; z-index:5!important; box-sizing:border-box!important; font-size:10px!important;
 }
 #reportCard .sig-wrap { margin-top:24px!important; padding-top:10px!important; }
 #reportCard #sigSlot { margin-bottom:10px!important; }
-@media (max-width:700px) {
-  #photoGrid .photo-edit-btn { font-size:10px!important; min-height:32px!important; }
-  #reportCard #previewPhotoGrid { right:12px!important; top:16px!important; bottom:78px!important; width:35%!important; }
-}
-/* Print layout: preserve the same single-column photo stack as the preview */
 body.print-mode #reportCard #previewPhotoGrid {
   position:absolute!important; top:20px!important; right:20px!important; bottom:90px!important;
   width:35%!important; height:auto!important; max-height:none!important;
   display:grid!important; grid-template-columns:minmax(0,1fr)!important;
   grid-template-rows:repeat(4,minmax(0,1fr))!important; gap:8px!important;
 }
-body.print-mode #reportCard #previewPhotoGrid .photo-slot {
-  height:100%!important; min-height:0!important; max-height:none!important;
+body.print-mode #reportCard .report-body p { font-size:18px!important; line-height:1.42!important; }
+body.print-mode #reportCard #p_tajuk { font-size:22px!important; }
+body.print-mode #reportCard .info-value { font-size:15.5px!important; }
+@media(max-width:700px) {
+  #photoGrid .photo-edit-btn { font-size:10px!important; min-height:32px!important; }
+  #reportCard #previewPhotoGrid { right:12px!important; top:16px!important; bottom:78px!important; width:35%!important; }
 }
-body.print-mode #reportCard .report-body p { font-size:14px!important; line-height:1.42!important; }
 </style>
 
 </body>
