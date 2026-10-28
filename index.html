@@ -843,8 +843,16 @@ function renderPreviewPhotos() {
         cell.dataset.zoom = edit.zoom || 1;
         applyCoverTransform(img, cell, focus.x, focus.y, img.naturalWidth || img.width, img.naturalHeight || img.height, edit.zoom || 1);
       };
-      if (img.complete && img.naturalWidth) applyCrop();
-      else img.addEventListener("load", applyCrop, { once: true });
+      // Tunggu sehingga cell berada dalam DOM dan mempunyai ukuran sebenar.
+      // Jika crop dikira sebelum cell dimasukkan ke grid, clientWidth/clientHeight
+      // bernilai 0 dan imej pratonton boleh gagal dipaparkan atau salah posisi.
+      if (img.complete && img.naturalWidth) {
+        requestAnimationFrame(() => requestAnimationFrame(applyCrop));
+      } else {
+        img.addEventListener("load", () => requestAnimationFrame(applyCrop), { once: true });
+      }
+      img.draggable = false;
+      img.style.pointerEvents = "none";
       cell.appendChild(img);
     } else {
       const empty = document.createElement("div");
@@ -1442,9 +1450,14 @@ function openImageEditor(i){
   editorPreviewImage=document.createElement('img');
   editorPreviewImage.src=photos[editingPhotoIndex];
   editorPreviewImage.alt='Pratonton suntingan gambar';
+  editorPreviewImage.draggable = false;
+  editorPreviewImage.style.pointerEvents = 'none';
   box.appendChild(editorPreviewImage);
-  if(editorPreviewImage.complete && editorPreviewImage.naturalWidth) updateEditorPreview();
-  else editorPreviewImage.onload=updateEditorPreview;
+  if(editorPreviewImage.complete && editorPreviewImage.naturalWidth) {
+    requestAnimationFrame(() => requestAnimationFrame(updateEditorPreview));
+  } else {
+    editorPreviewImage.onload = () => requestAnimationFrame(updateEditorPreview);
+  }
 }
 function closeImageEditor(){
   const back=document.getElementById('imageEditorBackdrop');
@@ -1478,13 +1491,15 @@ function saveImageEditor(){
   renderPreviewPhotos();
   closeImageEditor();
 }
-document.getElementById('imageZoom').addEventListener('input',e=>{
-  if(!editorDraft)return;
-  editorDraft.zoom=Number(e.target.value)/100;
+const imageZoomControl = document.getElementById('imageZoom');
+if (imageZoomControl) imageZoomControl.addEventListener('input', e => {
+  if (!editorDraft) return;
+  editorDraft.zoom = Number(e.target.value) / 100;
   updateEditorPreview();
 });
 (function(){
   const box=document.getElementById('imageEditorPreview');
+  if (!box) return;
   let drag=null;
   box.addEventListener('pointerdown',e=>{
     if(!editorDraft || !editorPreviewImage || (e.pointerType==='mouse' && e.button!==0))return;
@@ -1510,7 +1525,10 @@ document.getElementById('imageZoom').addEventListener('input',e=>{
   box.addEventListener('pointercancel',stopDrag);
   box.addEventListener('lostpointercapture',stopDrag);
 })();
-document.getElementById('imageEditorBackdrop').addEventListener('click',e=>{if(e.target.id==='imageEditorBackdrop')closeImageEditor();});
+const imageEditorBackdrop = document.getElementById('imageEditorBackdrop');
+if (imageEditorBackdrop) imageEditorBackdrop.addEventListener('click', e => {
+  if (e.target.id === 'imageEditorBackdrop') closeImageEditor();
+});
 </script>
 
 </body>
