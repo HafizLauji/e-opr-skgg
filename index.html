@@ -131,13 +131,12 @@
   .photo-edit-btn { position:absolute; left:4px; bottom:4px; z-index:3; border:0; border-radius:6px; padding:4px 7px; background:rgba(13,43,78,.88); color:#fff; font-size:10px; cursor:pointer; }
   .image-editor-backdrop { position:fixed; inset:0; z-index:9999; background:rgba(8,20,35,.58); display:none; align-items:center; justify-content:center; padding:16px; }
   .image-editor { width:min(440px,100%); background:#fff; border-radius:16px; padding:18px; box-shadow:0 18px 60px rgba(0,0,0,.25); }
-  .image-editor-preview { width:100%; height:230px; background:#eef1f5; border-radius:10px; overflow:hidden; position:relative; margin:12px 0; touch-action:none; }
+  .image-editor-preview { width:100%; height:230px; background:#eef1f5; border-radius:10px; overflow:hidden; position:relative; margin:12px 0; touch-action:none; cursor:grab; }
+  .image-editor-preview:active { cursor:grabbing; }
   .image-editor-preview img { position:absolute; max-width:none; max-height:none; transform-origin:0 0; user-select:none; -webkit-user-drag:none; }
   .editor-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
   .editor-actions button { border:1px solid #d6dce4; border-radius:8px; padding:9px 12px; background:#f7f9fc; cursor:pointer; font-weight:600; }
   .editor-actions .editor-save { background:#1568C4; color:white; border-color:#1568C4; }
-  .editor-move-grid { display:grid; grid-template-columns:repeat(3,42px); gap:5px; justify-content:center; margin:8px 0; }
-  .editor-move-grid button { height:36px; border:1px solid #d6dce4; border-radius:8px; background:#f7f9fc; cursor:pointer; }
   .image-editor label { display:block; font-size:12px; font-weight:700; margin:8px 0 4px; }
   .image-editor input[type=range] { padding:0; }
   .ai-btn {
@@ -1403,8 +1402,9 @@ window.addEventListener("resize", function(){
 
 
 <script>
-// Penyuntingan manual crop: disimpan untuk pratonton dan PDF, tanpa mengubah kotak A4.
+// Penyuntingan manual gambar: imej pratonton dibina sekali sahaja supaya seretan tidak menyebabkan hang.
 function clampFocus(v){ return Math.max(0, Math.min(1, v)); }
+let editorPreviewImage = null;
 function defaultPhotoEdit(i){
   const img = document.querySelectorAll('#previewPhotoGrid img')[i];
   const f = img ? analyzeSmartCrop(img) : {x:.5,y:.5};
@@ -1415,53 +1415,81 @@ function openImageEditor(i){
   editingPhotoIndex = i;
   const existing = photoEdits[i];
   editorDraft = existing ? {...existing} : defaultPhotoEdit(i);
-  document.getElementById('imageEditorBackdrop').style.display='flex';
+  const backdrop=document.getElementById('imageEditorBackdrop');
+  const box=document.getElementById('imageEditorPreview');
+  backdrop.style.display='flex';
   document.getElementById('imageZoom').value=Math.round((editorDraft.zoom||1)*100);
-  updateEditorPreview();
+  box.innerHTML='';
+  editorPreviewImage=document.createElement('img');
+  editorPreviewImage.src=photos[editingPhotoIndex];
+  editorPreviewImage.alt='Pratonton suntingan gambar';
+  box.appendChild(editorPreviewImage);
+  if(editorPreviewImage.complete && editorPreviewImage.naturalWidth) updateEditorPreview();
+  else editorPreviewImage.onload=updateEditorPreview;
 }
 function closeImageEditor(){
   const back=document.getElementById('imageEditorBackdrop');
   if(back) back.style.display='none';
-  editingPhotoIndex=-1; editorDraft=null;
+  editingPhotoIndex=-1; editorDraft=null; editorPreviewImage=null;
 }
 function updateEditorPreview(){
-  if(editingPhotoIndex<0 || !editorDraft) return;
+  if(editingPhotoIndex<0 || !editorDraft || !editorPreviewImage) return;
   const box=document.getElementById('imageEditorPreview');
-  box.innerHTML='';
-  const img=document.createElement('img'); img.src=photos[editingPhotoIndex]; img.alt='Pratonton suntingan gambar';
-  box.appendChild(img);
-  const apply=()=>{
-    const bw=box.clientWidth,bh=box.clientHeight,sw=img.naturalWidth,sh=img.naturalHeight;
-    if(!bw||!bh||!sw||!sh)return;
-    const scale=Math.max(bw/sw,bh/sh)*(editorDraft.zoom||1);
-    const dw=sw*scale,dh=sh*scale;
-    const maxX=Math.max(0,dw-bw),maxY=Math.max(0,dh-bh);
-    const tx=Math.max(-maxX,Math.min(0,-(dw*editorDraft.x-bw/2)));
-    const ty=Math.max(-maxY,Math.min(0,-(dh*editorDraft.y-bh/2)));
-    img.style.width=sw+'px';img.style.height=sh+'px';img.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;
-  };
-  if(img.complete&&img.naturalWidth)apply();else img.onload=apply;
+  const img=editorPreviewImage;
+  const bw=box.clientWidth,bh=box.clientHeight,sw=img.naturalWidth,sh=img.naturalHeight;
+  if(!bw||!bh||!sw||!sh)return;
+  const scale=Math.max(bw/sw,bh/sh)*(editorDraft.zoom||1);
+  const dw=sw*scale,dh=sh*scale;
+  const maxX=Math.max(0,dw-bw),maxY=Math.max(0,dh-bh);
+  const tx=Math.max(-maxX,Math.min(0,-(dw*editorDraft.x-bw/2)));
+  const ty=Math.max(-maxY,Math.min(0,-(dh*editorDraft.y-bh/2)));
+  img.style.width=sw+'px';img.style.height=sh+'px';
+  img.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;
   document.getElementById('imageZoomLabel').textContent=Math.round((editorDraft.zoom||1)*100)+'%';
 }
-function moveEditedPhoto(dx,dy){
+function resetEditedPhoto(){
   if(!editorDraft)return;
-  if(dx===0&&dy===0){editorDraft.x=.5;editorDraft.y=.5;}
-  else {editorDraft.x=clampFocus(editorDraft.x+dx);editorDraft.y=clampFocus(editorDraft.y+dy);}
+  editorDraft=defaultPhotoEdit(editingPhotoIndex);
+  document.getElementById('imageZoom').value=100;
   updateEditorPreview();
 }
-function resetEditedPhoto(){editorDraft=defaultPhotoEdit(editingPhotoIndex);document.getElementById('imageZoom').value=100;updateEditorPreview();}
 function saveImageEditor(){
   if(editingPhotoIndex<0||!editorDraft)return;
   photoEdits[editingPhotoIndex]={...editorDraft};
   renderPreviewPhotos();
   closeImageEditor();
 }
-document.getElementById('imageZoom').addEventListener('input',e=>{if(!editorDraft)return;editorDraft.zoom=Number(e.target.value)/100;updateEditorPreview();});
+document.getElementById('imageZoom').addEventListener('input',e=>{
+  if(!editorDraft)return;
+  editorDraft.zoom=Number(e.target.value)/100;
+  updateEditorPreview();
+});
 (function(){
-  const box=document.getElementById('imageEditorPreview');let drag=null;
-  box.addEventListener('pointerdown',e=>{if(!editorDraft)return;drag={x:e.clientX,y:e.clientY,fx:editorDraft.x,fy:editorDraft.y};box.setPointerCapture(e.pointerId);});
-  box.addEventListener('pointermove',e=>{if(!drag||!editorDraft)return;const scale=Math.max(1,editorDraft.zoom||1);editorDraft.x=clampFocus(drag.fx-(e.clientX-drag.x)/(box.clientWidth*scale));editorDraft.y=clampFocus(drag.fy-(e.clientY-drag.y)/(box.clientHeight*scale));updateEditorPreview();});
-  box.addEventListener('pointerup',()=>{drag=null;});box.addEventListener('pointercancel',()=>{drag=null;});
+  const box=document.getElementById('imageEditorPreview');
+  let drag=null;
+  box.addEventListener('pointerdown',e=>{
+    if(!editorDraft || !editorPreviewImage || e.button!==0)return;
+    drag={x:e.clientX,y:e.clientY,fx:editorDraft.x,fy:editorDraft.y};
+    box.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  box.addEventListener('pointermove',e=>{
+    if(!drag||!editorDraft)return;
+    const rect=box.getBoundingClientRect();
+    const img=editorPreviewImage;
+    const bw=box.clientWidth,bh=box.clientHeight;
+    const scale=Math.max(bw/(img.naturalWidth||1),bh/(img.naturalHeight||1))*(editorDraft.zoom||1);
+    const dw=(img.naturalWidth||1)*scale,dh=(img.naturalHeight||1)*scale;
+    const maxX=Math.max(1,dw-bw),maxY=Math.max(1,dh-bh);
+    editorDraft.x=clampFocus(drag.fx-(e.clientX-drag.x)/maxX);
+    editorDraft.y=clampFocus(drag.fy-(e.clientY-drag.y)/maxY);
+    updateEditorPreview();
+    e.preventDefault();
+  });
+  function stopDrag(){drag=null;}
+  box.addEventListener('pointerup',stopDrag);
+  box.addEventListener('pointercancel',stopDrag);
+  box.addEventListener('lostpointercapture',stopDrag);
 })();
 document.getElementById('imageEditorBackdrop').addEventListener('click',e=>{if(e.target.id==='imageEditorBackdrop')closeImageEditor();});
 </script>
@@ -1474,12 +1502,7 @@ document.getElementById('imageEditorBackdrop').addEventListener('click',e=>{if(e
     <div id="imageEditorPreview" class="image-editor-preview"></div>
     <label for="imageZoom">Zum gambar: <span id="imageZoomLabel">100%</span></label>
     <input id="imageZoom" type="range" min="100" max="250" step="5" value="100" />
-    <div style="font-size:11px;color:#64748b;margin-top:5px">Gerakkan gambar dengan butang anak panah atau seret gambar dalam ruang pratonton.</div>
-    <div class="editor-move-grid">
-      <span></span><button type="button" onclick="moveEditedPhoto(0,-0.05)" aria-label="Gerak ke atas">↑</button><span></span>
-      <button type="button" onclick="moveEditedPhoto(-0.05,0)" aria-label="Gerak ke kiri">←</button><button type="button" onclick="moveEditedPhoto(0,0)" aria-label="Tengah">•</button><button type="button" onclick="moveEditedPhoto(0.05,0)" aria-label="Gerak ke kanan">→</button>
-      <span></span><button type="button" onclick="moveEditedPhoto(0,0.05)" aria-label="Gerak ke bawah">↓</button><span></span>
-    </div>
+    <div style="font-size:11px;color:#64748b;margin-top:5px">Seret gambar terus dengan tetikus atau jari untuk mengubah kedudukan. Laraskan zum menggunakan gelangsar.</div>
     <div class="editor-actions">
       <button type="button" onclick="resetEditedPhoto()">Reset gambar</button>
       <button type="button" onclick="closeImageEditor()">Batal</button>
