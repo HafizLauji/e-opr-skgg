@@ -1118,7 +1118,7 @@ async function renderA4Canvas() {
   // Layout PDF dikunci kepada A4 794 x 1123 px.
   // Tidak bergantung kepada saiz skrin laptop/telefon.
   const canvas = await html2canvas(document.getElementById("reportCard"), {
-    scale: 3,
+    scale: 4,
     useCORS: true,
     backgroundColor: "#ffffff",
     width: 794,
@@ -1127,11 +1127,13 @@ async function renderA4Canvas() {
     windowHeight: 1123,
     scrollX: 0,
     scrollY: 0,
-    onclone: (doc) => {
+    onclone: async (doc) => {
       const card = doc.getElementById("reportCard");
       doc.body.innerHTML = "";
       doc.body.className = "print-mode";
-      doc.body.style.cssText = "margin:0;padding:0;width:794px;height:1123px;overflow:hidden;background:#fff;";
+      doc.documentElement.style.setProperty("-webkit-print-color-adjust", "exact");
+      doc.documentElement.style.setProperty("print-color-adjust", "exact");
+      doc.body.style.cssText = "margin:0;padding:0;width:794px;height:1123px;overflow:hidden;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;color-adjust:exact;";
       doc.body.appendChild(card);
 
       card.style.cssText =
@@ -1256,6 +1258,32 @@ async function renderA4Canvas() {
         }
       });
 
+      // Tunggu imej salinan PDF benar-benar selesai dimuat sebelum html2canvas menangkapnya.
+      // Kemudian gunakan semula titik fokus dan zum yang sama seperti pratonton.
+      await Promise.all(Array.from(grid.querySelectorAll("img")).map(img => {
+        if (img.complete && img.naturalWidth) return Promise.resolve();
+        return new Promise(resolve => {
+          img.addEventListener("load", resolve, { once: true });
+          img.addEventListener("error", resolve, { once: true });
+        });
+      }));
+      Array.from(grid.children).forEach((cell) => {
+        const img = cell.querySelector("img");
+        if (!img || !img.naturalWidth) return;
+        const fx = parseFloat(cell.dataset.cropX);
+        const fy = parseFloat(cell.dataset.cropY);
+        const zoom = Number(cell.dataset.zoom) || 1;
+        applyCoverTransform(
+          img, cell,
+          Number.isFinite(fx) ? fx : 0.5,
+          Number.isFinite(fy) ? fy : 0.5,
+          Number(cell.dataset.sourceWidth) || img.naturalWidth,
+          Number(cell.dataset.sourceHeight) || img.naturalHeight,
+          zoom
+        );
+      });
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
       if (sigWrap) {
         sigWrap.style.display = "flex";
         sigWrap.style.setProperty("flex", "0 0 auto", "important");
@@ -1320,7 +1348,7 @@ function canvasToA4Pdf(canvas, quality) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
   // PNG mengekalkan tepi teks/logo tanpa artifak JPEG; reka bentuk A4 tidak berubah.
-  pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 210, 297, undefined, "FAST");
+  pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 210, 297, undefined, "SLOW");
   return pdf;
 }
 
@@ -1664,15 +1692,15 @@ function updateEditorPreview(){
   if(editingPhotoIndex<0 || !editorDraft || !editorPreviewImage) return;
   const box=document.getElementById('imageEditorPreview');
   const img=editorPreviewImage;
-  const bw=box.clientWidth,bh=box.clientHeight,sw=img.naturalWidth,sh=img.naturalHeight;
-  if(!bw||!bh||!sw||!sh)return;
-  const scale=Math.max(bw/sw,bh/sh)*(editorDraft.zoom||1);
-  const dw=sw*scale,dh=sh*scale;
-  const maxX=Math.max(0,dw-bw),maxY=Math.max(0,dh-bh);
-  const tx=Math.max(-maxX,Math.min(0,-(dw*editorDraft.x-bw/2)));
-  const ty=Math.max(-maxY,Math.min(0,-(dh*editorDraft.y-bh/2)));
-  img.style.width=dw+'px';img.style.height=dh+'px';
-  img.style.transform=`translate(${tx}px,${ty}px)`;
+  if(!box || !img.naturalWidth || !img.naturalHeight || !box.clientWidth || !box.clientHeight) return;
+  // Fungsi transform yang sama digunakan oleh editor, pratonton dan eksport PDF.
+  applyCoverTransform(
+    img, box,
+    editorDraft.x == null ? 0.5 : editorDraft.x,
+    editorDraft.y == null ? 0.5 : editorDraft.y,
+    img.naturalWidth, img.naturalHeight,
+    editorDraft.zoom || 1
+  );
   document.getElementById('imageZoomLabel').textContent=Math.round((editorDraft.zoom||1)*100)+'%';
 }
 function resetEditedPhoto(){
