@@ -640,6 +640,7 @@ body.print-mode .report-footer {
 
       <div class="btn-row">
         <button class="btn-primary" id="btnDownload" onclick="downloadPdf()">⬇ Muat Turun PDF</button>
+        <button class="btn-outline" id="btnDownloadImage" onclick="downloadImage()">🖼 Muat Turun PNG</button>
         <button class="btn-outline" id="btnTelegram" onclick="sendTelegram()">➤ Hantar ke Telegram</button>
       </div>
       <div id="statusBox"></div>
@@ -1431,6 +1432,39 @@ async function downloadPdf() {
   } finally {
     btn.disabled = false;
     btn.textContent = "⬇ Muat Turun PDF";
+  }
+}
+
+// Eksport imej PNG menggunakan kanvas A4 yang sama dengan PDF.
+// Resolusi skala 4 dikekalkan supaya teks dan logo kekal tajam apabila dicetak.
+async function downloadImage() {
+  const btn = document.getElementById("btnDownloadImage");
+  btn.disabled = true;
+  btn.textContent = "Menjana PNG...";
+  try {
+    const canvas = await renderA4Canvas();
+    const filename = buildFileName().replace(/\.pdf$/i, ".png");
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(result => result ? resolve(result) : reject(new Error("Pelayar gagal menghasilkan fail PNG.")), "image/png");
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    showStatus(true, "Imej PNG A4 beresolusi tinggi berjaya disediakan. Untuk mencetak, pilih kertas A4 dan skala muat ke halaman jika tersedia.");
+  } catch (err) {
+    if (err && err.message === "KANDUNGAN_TERLALU_PANJANG") {
+      showStatus(false, "AMARAN: Kandungan terlalu panjang atau bahagian Penambahbaikan terlalu hampir dengan ruang tandatangan. Ringkaskan ayat laporan supaya ruang “Disediakan oleh” kekal jelas sebelum memuat turun PNG.");
+    } else {
+      showStatus(false, "Gagal jana PNG: " + (err && err.message ? err.message : String(err)));
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "🖼 Muat Turun PNG";
   }
 }
 
