@@ -903,39 +903,84 @@ function showStatus(ok, msg) {
 async function janaAI(btn) {
   const field = btn.dataset.field;
   const textarea = document.getElementById("f_" + field);
+  if (!textarea) {
+    showStatus(false, "Ruangan laporan tidak ditemui. Muat semula halaman dan cuba lagi.");
+    return;
+  }
+
   const original = btn.textContent;
-  btn.textContent = "⏳...";
+  btn.textContent = "⏳ Menjana...";
   btn.disabled = true;
+  showStatus(true, "Permintaan AI sedang diproses. Sila tunggu...");
+
+  const payload = {
+    action: "janaAI",
+    unit: currentUnit,
+    medan: field,
+    pointRingkas: textarea.value || "(tiada point diberikan, tulis ayat umum sesuai unit)",
+    tajukProgram: document.getElementById("f_tajuk").value,
+    tarikh: formatTarikh(document.getElementById("f_tarikh").value),
+    tempat: document.getElementById("f_tempat").value,
+    sasaran: document.getElementById("f_sasaran").value,
+    anjuran: document.getElementById("f_anjuran").value,
+    maklumatTambahan: "",
+    extraLabel: ""
+  };
+
   try {
-    const res = await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
+    // JSONP digunakan kerana respons POST daripada Apps Script boleh disekat
+    // oleh CORS walaupun permintaan sampai dan Groq sudah memprosesnya.
+    const data = await new Promise((resolve, reject) => {
+      const callbackName = "skggJanaAI_" + Date.now() + "_" + Math.floor(Math.random() * 100000);
+      const script = document.createElement("script");
+      let settled = false;
+      const timeout = setTimeout(() => finish(new Error("Masa menunggu respons AI tamat. Cuba sekali lagi.")), 60000);
+
+      function cleanup() {
+        clearTimeout(timeout);
+        script.remove();
+        try { delete window[callbackName]; } catch (_) { window[callbackName] = undefined; }
+      }
+      function finish(error, result) {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        if (error) reject(error);
+        else resolve(result);
+      }
+
+      window[callbackName] = result => finish(null, result);
+      script.onerror = () => finish(new Error("Respons backend tidak dapat dimuatkan. Semak deployment Web App dan cuba lagi."));
+
+      const params = new URLSearchParams({
         action: "janaAI",
-        unit: currentUnit,
-        medan: field,
-        pointRingkas: textarea.value || "(tiada point diberikan, tulis ayat umum sesuai unit)",
-        tajukProgram: document.getElementById("f_tajuk").value,
-        tarikh: formatTarikh(document.getElementById("f_tarikh").value),
-        tempat: document.getElementById("f_tempat").value,
-        sasaran: document.getElementById("f_sasaran").value,
-        anjuran: document.getElementById("f_anjuran").value,
-        maklumatTambahan: "",
-        extraLabel: "",
-        bahagianLain: ["aktiviti","kekuatan","cabaran","penambahbaikan"]
-          .filter(f => f !== field)
-          .reduce((o, f) => { const v = document.getElementById("f_" + f).value.trim(); if (v) o[f] = v; return o; }, {}),
-      }),
+        callback: callbackName,
+        _ts: String(Date.now()),
+        unit: payload.unit,
+        medan: payload.medan,
+        pointRingkas: payload.pointRingkas,
+        tajukProgram: payload.tajukProgram || "",
+        tarikh: payload.tarikh || "",
+        tempat: payload.tempat || "",
+        sasaran: payload.sasaran || "",
+        anjuran: payload.anjuran || "",
+        maklumatTambahan: payload.maklumatTambahan,
+        extraLabel: payload.extraLabel
+      });
+
+      script.src = GAS_URL + "?" + params.toString();
+      document.head.appendChild(script);
     });
-    const data = await res.json();
-    if (data.success) {
+
+    if (data && data.success && data.teks) {
       textarea.value = data.teks;
       render();
+      showStatus(true, "Janaan AI berjaya dimasukkan ke ruangan laporan.");
     } else {
-      showStatus(false, "Jana AI gagal: " + data.error);
+      showStatus(false, "Jana AI gagal: " + (data && data.error ? data.error : "Respons AI kosong atau tidak sah."));
     }
   } catch (err) {
-    showStatus(false, "Ralat Jana AI: " + err.message);
+    showStatus(false, "Jana AI tidak berjaya dipaparkan: " + (err && err.message ? err.message : String(err)));
   } finally {
     btn.textContent = original;
     btn.disabled = false;
