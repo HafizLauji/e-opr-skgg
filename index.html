@@ -1090,6 +1090,17 @@ let pdfContentOverflow = false;
 async function renderA4Canvas() {
   pdfContentOverflow = false;
   if (document.fonts && document.fonts.ready) await document.fonts.ready;
+  // Tunggu semua imej pratonton selesai dimuat sebelum tangkap PDF.
+  const previewImgs = Array.from(document.querySelectorAll("#previewPhotoGrid img"));
+  await Promise.all(previewImgs.map(img => {
+    if (img.complete && img.naturalWidth) return Promise.resolve();
+    return new Promise(resolve => {
+      const done = () => resolve();
+      img.addEventListener("load", done, { once: true });
+      img.addEventListener("error", done, { once: true });
+      setTimeout(done, 5000);
+    });
+  }));
   // Layout PDF dikunci kepada A4 794 x 1123 px.
   // Tidak bergantung kepada saiz skrin laptop/telefon.
   const canvas = await html2canvas(document.getElementById("reportCard"), {
@@ -1165,21 +1176,15 @@ async function renderA4Canvas() {
         el.style.fontSize = "13.5px";
       });
 
-      // SEMUA UNIT: tepat 4 gambar, 2 x 2, saiz slot tetap.
+      // TEMPLATE DUA KOLOM: kekalkan 4 gambar menegak seperti pratonton.
+      // Letak secara absolute supaya PDF tidak mengecilkan gambar ke grid 2x2 lama.
       grid.classList.add("photo-area");
-      grid.style.display = "grid";
-      grid.style.gridTemplateColumns = "repeat(2, minmax(0, 1fr))";
-      grid.style.gridTemplateRows = "repeat(2, 1fr)";
-      grid.style.gap = "9px";
-      grid.style.flex = "0 0 auto";
-      grid.style.width = "100%";
-      grid.style.maxWidth = "650px";
-      grid.style.height = "238px";
-      grid.style.minHeight = "238px";
-      grid.style.maxHeight = "238px";
-      grid.style.margin = "5px auto 0";
-      grid.style.overflow = "hidden";
-      grid.style.alignSelf = "center";
+      grid.style.cssText =
+        "position:absolute!important;top:20px!important;right:20px!important;bottom:90px!important;" +
+        "left:auto!important;width:41%!important;height:auto!important;max-width:none!important;" +
+        "max-height:none!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;" +
+        "grid-template-rows:repeat(4,minmax(0,1fr))!important;gap:8px!important;" +
+        "overflow:hidden!important;align-content:stretch!important;margin:0!important;padding:0!important;";
 
       Array.from(grid.children).forEach((c) => {
         let src = null;
@@ -1234,7 +1239,7 @@ async function renderA4Canvas() {
 
       if (sigWrap) {
         sigWrap.style.display = "flex";
-        sigWrap.style.setProperty("margin-top", "7px", "important");
+        sigWrap.style.setProperty("margin-top", "18px", "important");
         sigWrap.style.setProperty("padding-top", "0", "important");
         sigWrap.style.setProperty("flex", "0 0 auto", "important");
       }
@@ -1699,6 +1704,65 @@ if (imageEditorBackdrop) imageEditorBackdrop.addEventListener('click', e => {
   if (e.target.id === 'imageEditorBackdrop') closeImageEditor();
 });
 </script>
+
+
+<style id="opr-v4-refinements">
+/* Input stabil ketika menaip di telefon: elak auto-zoom dan perubahan line-height. */
+#formPanel input, #formPanel textarea, #formPanel select,
+input[type="text"], input[type="date"], textarea, select {
+  font-size:16px;
+  line-height:1.45;
+  box-sizing:border-box;
+  max-width:100%;
+}
+textarea { overflow-anchor:none; }
+#formPanel textarea { resize:vertical; min-height:88px; }
+#formPanel input:focus, #formPanel textarea:focus, #formPanel select:focus {
+  scroll-margin-top:90px;
+}
+/* Butang edit tidak dipotong dan kekal boleh disentuh. */
+.photo-slot, #photoGrid .photo-slot { overflow:visible; }
+.photo-edit-btn {
+  left:6px!important; bottom:6px!important;
+  min-height:30px!important; min-width:84px!important;
+  padding:7px 10px!important; font-size:11px!important;
+  line-height:1.2!important; white-space:nowrap!important;
+  width:auto!important; max-width:calc(100% - 12px)!important;
+  box-sizing:border-box!important; z-index:8!important;
+}
+#photoGrid .photo-slot { position:relative!important; }
+#photoGrid .photo-slot .photo-edit-btn { display:inline-flex!important; align-items:center!important; justify-content:center!important; }
+.image-editor { box-sizing:border-box; max-height:calc(100dvh - 24px); overflow-y:auto; }
+.image-editor-backdrop { overflow-y:auto; align-items:center; }
+.image-editor-preview { flex-shrink:0; }
+.editor-actions button { min-height:38px; }
+#reportCard .sig-wrap { padding-top:12px!important; }
+#reportCard .sig-wrap > div { margin-top:8px!important; }
+/* Besarkan isi laporan sedikit tanpa mengubah tajuk yang sudah dipersetujui. */
+#reportCard .report-section p,
+#reportCard .report-content p,
+#reportCard .report-body p {
+  font-size:12.2px!important;
+  line-height:1.42!important;
+  text-align:justify!important;
+  text-justify:inter-word;
+  overflow-wrap:anywhere;
+}
+/* Header ikut warna unit semasa. Warna dikawal oleh --accent daripada konfigurasi asal. */
+#reportHeader { background:linear-gradient(105deg, color-mix(in srgb, var(--accent) 55%, #ffffff) 0%, var(--accent) 100%)!important; }
+#reportCard .ribbon-divider { text-align:justify; }
+@media (max-width: 700px) {
+  body { overflow-x:hidden; }
+  #formPanel { min-width:0!important; max-width:100%!important; }
+  #formPanel input, #formPanel textarea, #formPanel select { width:100%; }
+  .photo-edit-btn { min-height:32px!important; font-size:11px!important; }
+  .image-editor { width:100%; padding:14px; }
+  .image-editor-preview { height:min(42vh,230px); }
+}
+/* PDF: isi lebih besar dan jarak tandatangan konsisten. */
+.print-mode #reportCard .report-body p { font-size:15px!important; line-height:1.45!important; }
+.print-mode #reportCard .sig-wrap { margin-top:18px!important; padding-top:10px!important; }
+</style>
 
 </body>
 </html>
