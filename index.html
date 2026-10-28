@@ -128,6 +128,18 @@
     aspect-ratio: 1; border-radius: 8px; border: 1.5px dashed; background: var(--tint, #EAF2FC);
     display: flex; align-items: center; justify-content: center; cursor: pointer;
   }
+  .photo-edit-btn { position:absolute; left:4px; bottom:4px; z-index:3; border:0; border-radius:6px; padding:4px 7px; background:rgba(13,43,78,.88); color:#fff; font-size:10px; cursor:pointer; }
+  .image-editor-backdrop { position:fixed; inset:0; z-index:9999; background:rgba(8,20,35,.58); display:none; align-items:center; justify-content:center; padding:16px; }
+  .image-editor { width:min(440px,100%); background:#fff; border-radius:16px; padding:18px; box-shadow:0 18px 60px rgba(0,0,0,.25); }
+  .image-editor-preview { width:100%; height:230px; background:#eef1f5; border-radius:10px; overflow:hidden; position:relative; margin:12px 0; touch-action:none; }
+  .image-editor-preview img { position:absolute; max-width:none; max-height:none; transform-origin:0 0; user-select:none; -webkit-user-drag:none; }
+  .editor-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .editor-actions button { border:1px solid #d6dce4; border-radius:8px; padding:9px 12px; background:#f7f9fc; cursor:pointer; font-weight:600; }
+  .editor-actions .editor-save { background:#1568C4; color:white; border-color:#1568C4; }
+  .editor-move-grid { display:grid; grid-template-columns:repeat(3,42px); gap:5px; justify-content:center; margin:8px 0; }
+  .editor-move-grid button { height:36px; border:1px solid #d6dce4; border-radius:8px; background:#f7f9fc; cursor:pointer; }
+  .image-editor label { display:block; font-size:12px; font-weight:700; margin:8px 0 4px; }
+  .image-editor input[type=range] { padding:0; }
   .ai-btn {
     display: flex; align-items: center; gap: 4px; border: none; border-radius: 20px;
     padding: 3px 10px 3px 8px; font-size: 10.5px; font-weight: 700;
@@ -601,6 +613,9 @@ const UNITS = {
 let currentUnit = "kurikulum";
 let photos = [];
 let photoCropPositions = [];
+let photoEdits = [];
+let editingPhotoIndex = -1;
+let editorDraft = null;
 
 const fieldIds = ["tajuk","tarikh","masa","tempat","sasaran","anjuran","aktiviti","kekuatan","cabaran","penambahbaikan","nama","jawatan"];
 
@@ -623,6 +638,8 @@ function switchUnit(key) {
   photos = [];
   fieldIds.forEach(id => { const el = document.getElementById("f_" + id); if (el) el.value = ""; });
   photoCropPositions = [];
+  photoEdits = [];
+  closeImageEditor();
   document.getElementById("statusBox").innerHTML = "";
   render();
 }
@@ -762,7 +779,7 @@ function renderPhotoGrid() {
   photos.forEach((src, i) => {
     const slot = document.createElement("div");
     slot.className = "photo-slot";
-    slot.innerHTML = `<img src="${src}" /><button class="photo-remove" onclick="removePhoto(${i})">✕</button>`;
+    slot.innerHTML = `<img src="${src}" /><button class="photo-remove" onclick="removePhoto(${i})" aria-label="Buang gambar">✕</button><button class="photo-edit-btn" onclick="openImageEditor(${i})" type="button">✎ Edit</button>`;
     grid.appendChild(slot);
   });
   if (photos.length < cfg.photoSlots) {
@@ -814,7 +831,9 @@ function renderPreviewPhotos() {
       img.alt = "Gambar aktiviti";
       img.style.cssText = "position:absolute;left:0;top:0;max-width:none;max-height:none;width:auto;height:auto;display:block;transform-origin:0 0";
       const applyCrop = () => {
-        const focus = analyzeSmartCrop(img);
+        const autoFocus = analyzeSmartCrop(img);
+        const edit = photoEdits[i] || { x: autoFocus.x, y: autoFocus.y, zoom: 1 };
+        const focus = { x: edit.x == null ? autoFocus.x : edit.x, y: edit.y == null ? autoFocus.y : edit.y };
         const pos = `${Math.round(focus.x * 100)}% ${Math.round(focus.y * 100)}%`;
         photoCropPositions[i] = pos;
         cell.dataset.smartPosition = pos;
@@ -822,7 +841,8 @@ function renderPreviewPhotos() {
         cell.dataset.cropY = focus.y;
         cell.dataset.sourceWidth = img.naturalWidth || img.width || 0;
         cell.dataset.sourceHeight = img.naturalHeight || img.height || 0;
-        applyCoverTransform(img, cell, focus.x, focus.y);
+        cell.dataset.zoom = edit.zoom || 1;
+        applyCoverTransform(img, cell, focus.x, focus.y, img.naturalWidth || img.width, img.naturalHeight || img.height, edit.zoom || 1);
       };
       if (img.complete && img.naturalWidth) applyCrop();
       else img.addEventListener("load", applyCrop, { once: true });
@@ -839,6 +859,8 @@ function renderPreviewPhotos() {
 
 function removePhoto(i) {
   photos.splice(i, 1);
+  photoCropPositions.splice(i, 1);
+  photoEdits.splice(i, 1);
   render();
 }
 
@@ -851,6 +873,7 @@ document.getElementById("photoInput").addEventListener("change", (e) => {
     reader.onload = () => {
       photos.push(reader.result);
       photoCropPositions.push(null);
+      photoEdits.push(null);
       loaded++;
       if (loaded === files.length) render();
     };
@@ -922,7 +945,7 @@ async function renderA4Canvas() {
   // Layout PDF dikunci kepada A4 794 x 1123 px.
   // Tidak bergantung kepada saiz skrin laptop/telefon.
   const canvas = await html2canvas(document.getElementById("reportCard"), {
-    scale: 2,
+    scale: 3,
     useCORS: true,
     backgroundColor: "#ffffff",
     width: 794,
@@ -1046,6 +1069,7 @@ async function renderA4Canvas() {
           const fy = Number.isFinite(cropY) ? cropY : (parsed ? Number(parsed[2]) / 100 : 0.5);
           const sw = Number(c.dataset.sourceWidth) || 0;
           const sh = Number(c.dataset.sourceHeight) || 0;
+          const zoom = Number(c.dataset.zoom) || 1;
           img.style.cssText =
             "position:absolute;left:0;top:0;max-width:none;max-height:none;" +
             "width:auto;height:auto;display:block;transform-origin:0 0;";
@@ -1053,7 +1077,7 @@ async function renderA4Canvas() {
           const applyPdfCrop = () => {
             const naturalW = sw || img.naturalWidth || img.width;
             const naturalH = sh || img.naturalHeight || img.height;
-            applyCoverTransform(img, c, fx, fy, naturalW, naturalH);
+            applyCoverTransform(img, c, fx, fy, naturalW, naturalH, zoom);
           };
           if (img.complete && img.naturalWidth) applyPdfCrop();
           else img.addEventListener("load", applyPdfCrop, { once: true });
@@ -1091,8 +1115,9 @@ async function renderA4Canvas() {
 
 function canvasToA4Pdf(canvas, quality) {
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  pdf.addImage(canvas.toDataURL("image/jpeg", quality), "JPEG", 0, 0, 210, 297);
+  const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+  // PNG mengekalkan tepi teks/logo tanpa artifak JPEG; reka bentuk A4 tidak berubah.
+  pdf.addImage(canvas.toDataURL("image/png"), "PNG", 0, 0, 210, 297, undefined, "FAST");
   return pdf;
 }
 
@@ -1274,7 +1299,7 @@ function smartCropPosition(img) {
  * object-fit inconsistently. The image is physically scaled and translated
  * inside an overflow:hidden box, guaranteeing that the PDF is cropped.
  */
-function applyCoverTransform(img, box, focalX, focalY, sourceW, sourceH) {
+function applyCoverTransform(img, box, focalX, focalY, sourceW, sourceH, zoomFactor) {
   if (!img || !box) return;
   const sw = sourceW || img.naturalWidth || img.width;
   const sh = sourceH || img.naturalHeight || img.height;
@@ -1282,7 +1307,8 @@ function applyCoverTransform(img, box, focalX, focalY, sourceW, sourceH) {
   const bh = box.clientHeight || box.offsetHeight;
   if (!sw || !sh || !bw || !bh) return;
 
-  const scale = Math.max(bw / sw, bh / sh);
+  const baseScale = Math.max(bw / sw, bh / sh);
+  const scale = baseScale * Math.max(1, Number(zoomFactor) || 1);
   const drawW = sw * scale;
   const drawH = sh * scale;
   const maxX = Math.max(0, drawW - bw);
@@ -1304,11 +1330,15 @@ function applyCoverTransform(img, box, focalX, focalY, sourceW, sourceH) {
 function applySmartCrop(img) {
   if (!img) return;
   const apply = () => {
-    const f = analyzeSmartCrop(img);
+    const box = img.parentElement;
+    const cells = Array.from(document.querySelectorAll('#previewPhotoGrid > div'));
+    const index = cells.indexOf(box);
+    const auto = analyzeSmartCrop(img);
+    const edit = index >= 0 ? photoEdits[index] : null;
+    const f = { x: edit && edit.x != null ? edit.x : auto.x, y: edit && edit.y != null ? edit.y : auto.y };
     img.dataset.cropX = f.x;
     img.dataset.cropY = f.y;
-    const box = img.parentElement;
-    applyCoverTransform(img, box, f.x, f.y);
+    applyCoverTransform(img, box, f.x, f.y, img.naturalWidth, img.naturalHeight, edit ? edit.zoom : 1);
     img.style.objectPosition = `${Math.round(f.x * 100)}% ${Math.round(f.y * 100)}%`;
   };
   if (img.complete && (img.naturalWidth || img.width)) apply();
@@ -1370,6 +1400,93 @@ window.addEventListener("resize", function(){
   });
 });
 </script>
+
+
+<script>
+// Penyuntingan manual crop: disimpan untuk pratonton dan PDF, tanpa mengubah kotak A4.
+function clampFocus(v){ return Math.max(0, Math.min(1, v)); }
+function defaultPhotoEdit(i){
+  const img = document.querySelectorAll('#previewPhotoGrid img')[i];
+  const f = img ? analyzeSmartCrop(img) : {x:.5,y:.5};
+  return {x:f.x, y:f.y, zoom:1};
+}
+function openImageEditor(i){
+  if(!photos[i]) return;
+  editingPhotoIndex = i;
+  const existing = photoEdits[i];
+  editorDraft = existing ? {...existing} : defaultPhotoEdit(i);
+  document.getElementById('imageEditorBackdrop').style.display='flex';
+  document.getElementById('imageZoom').value=Math.round((editorDraft.zoom||1)*100);
+  updateEditorPreview();
+}
+function closeImageEditor(){
+  const back=document.getElementById('imageEditorBackdrop');
+  if(back) back.style.display='none';
+  editingPhotoIndex=-1; editorDraft=null;
+}
+function updateEditorPreview(){
+  if(editingPhotoIndex<0 || !editorDraft) return;
+  const box=document.getElementById('imageEditorPreview');
+  box.innerHTML='';
+  const img=document.createElement('img'); img.src=photos[editingPhotoIndex]; img.alt='Pratonton suntingan gambar';
+  box.appendChild(img);
+  const apply=()=>{
+    const bw=box.clientWidth,bh=box.clientHeight,sw=img.naturalWidth,sh=img.naturalHeight;
+    if(!bw||!bh||!sw||!sh)return;
+    const scale=Math.max(bw/sw,bh/sh)*(editorDraft.zoom||1);
+    const dw=sw*scale,dh=sh*scale;
+    const maxX=Math.max(0,dw-bw),maxY=Math.max(0,dh-bh);
+    const tx=Math.max(-maxX,Math.min(0,-(dw*editorDraft.x-bw/2)));
+    const ty=Math.max(-maxY,Math.min(0,-(dh*editorDraft.y-bh/2)));
+    img.style.width=sw+'px';img.style.height=sh+'px';img.style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;
+  };
+  if(img.complete&&img.naturalWidth)apply();else img.onload=apply;
+  document.getElementById('imageZoomLabel').textContent=Math.round((editorDraft.zoom||1)*100)+'%';
+}
+function moveEditedPhoto(dx,dy){
+  if(!editorDraft)return;
+  if(dx===0&&dy===0){editorDraft.x=.5;editorDraft.y=.5;}
+  else {editorDraft.x=clampFocus(editorDraft.x+dx);editorDraft.y=clampFocus(editorDraft.y+dy);}
+  updateEditorPreview();
+}
+function resetEditedPhoto(){editorDraft=defaultPhotoEdit(editingPhotoIndex);document.getElementById('imageZoom').value=100;updateEditorPreview();}
+function saveImageEditor(){
+  if(editingPhotoIndex<0||!editorDraft)return;
+  photoEdits[editingPhotoIndex]={...editorDraft};
+  renderPreviewPhotos();
+  closeImageEditor();
+}
+document.getElementById('imageZoom').addEventListener('input',e=>{if(!editorDraft)return;editorDraft.zoom=Number(e.target.value)/100;updateEditorPreview();});
+(function(){
+  const box=document.getElementById('imageEditorPreview');let drag=null;
+  box.addEventListener('pointerdown',e=>{if(!editorDraft)return;drag={x:e.clientX,y:e.clientY,fx:editorDraft.x,fy:editorDraft.y};box.setPointerCapture(e.pointerId);});
+  box.addEventListener('pointermove',e=>{if(!drag||!editorDraft)return;const scale=Math.max(1,editorDraft.zoom||1);editorDraft.x=clampFocus(drag.fx-(e.clientX-drag.x)/(box.clientWidth*scale));editorDraft.y=clampFocus(drag.fy-(e.clientY-drag.y)/(box.clientHeight*scale));updateEditorPreview();});
+  box.addEventListener('pointerup',()=>{drag=null;});box.addEventListener('pointercancel',()=>{drag=null;});
+})();
+document.getElementById('imageEditorBackdrop').addEventListener('click',e=>{if(e.target.id==='imageEditorBackdrop')closeImageEditor();});
+</script>
+
+<div id="imageEditorBackdrop" class="image-editor-backdrop" role="dialog" aria-modal="true" aria-label="Edit gambar">
+  <div class="image-editor">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <strong>Edit Gambar Aktiviti</strong><button type="button" onclick="closeImageEditor()" aria-label="Tutup editor" style="border:0;background:transparent;font-size:22px;cursor:pointer">×</button>
+    </div>
+    <div id="imageEditorPreview" class="image-editor-preview"></div>
+    <label for="imageZoom">Zum gambar: <span id="imageZoomLabel">100%</span></label>
+    <input id="imageZoom" type="range" min="100" max="250" step="5" value="100" />
+    <div style="font-size:11px;color:#64748b;margin-top:5px">Gerakkan gambar dengan butang anak panah atau seret gambar dalam ruang pratonton.</div>
+    <div class="editor-move-grid">
+      <span></span><button type="button" onclick="moveEditedPhoto(0,-0.05)" aria-label="Gerak ke atas">↑</button><span></span>
+      <button type="button" onclick="moveEditedPhoto(-0.05,0)" aria-label="Gerak ke kiri">←</button><button type="button" onclick="moveEditedPhoto(0,0)" aria-label="Tengah">•</button><button type="button" onclick="moveEditedPhoto(0.05,0)" aria-label="Gerak ke kanan">→</button>
+      <span></span><button type="button" onclick="moveEditedPhoto(0,0.05)" aria-label="Gerak ke bawah">↓</button><span></span>
+    </div>
+    <div class="editor-actions">
+      <button type="button" onclick="resetEditedPhoto()">Reset gambar</button>
+      <button type="button" onclick="closeImageEditor()">Batal</button>
+      <button type="button" class="editor-save" onclick="saveImageEditor()">Simpan perubahan</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
