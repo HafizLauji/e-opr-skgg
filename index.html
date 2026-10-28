@@ -1764,5 +1764,68 @@ textarea { overflow-anchor:none; }
 .print-mode #reportCard .sig-wrap { margin-top:18px!important; padding-top:10px!important; }
 </style>
 
+
+<style id="opr-v5-final-layout-fix">
+/* V5: REPORT CONTENT ONLY — do not enlarge data-entry controls */
+#reportCard { overflow:hidden!important; }
+#reportCard .report-header { background:var(--accent,#247b9b)!important; color:#fff!important; }
+#reportCard .report-header * { color:inherit; }
+/* Make every report ribbon follow the active unit colour, not only the top header */
+#reportCard .ribbon-divider .tag,
+#reportCard .ribbon-divider .line { background:var(--accent,#247b9b)!important; border-color:var(--accent,#247b9b)!important; }
+#reportCard .ribbon-divider .tag { color:#fff!important; }
+#reportCard #p_tajuk { font-size:20px!important; line-height:1.25!important; font-weight:800!important; }
+#reportCard .report-body p,
+#reportCard .report-body .info-value,
+#reportCard .report-body .info-row,
+#reportCard .report-body .info-row span { font-size:14px!important; line-height:1.48!important; }
+#reportCard .report-body p { text-align:justify!important; overflow-wrap:anywhere!important; }
+#reportCard #infoRows { font-size:13.5px!important; line-height:1.4!important; }
+/* Match new tall-photo template in preview and print/PDF */
+#reportCard #previewPhotoGrid {
+  position:absolute!important; top:20px!important; right:20px!important; bottom:90px!important;
+  width:35%!important; height:auto!important; max-height:none!important;
+  display:grid!important; grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:repeat(4,minmax(0,1fr))!important; gap:8px!important;
+  overflow:hidden!important; box-sizing:border-box!important;
+}
+#reportCard #previewPhotoGrid .photo-slot {
+  width:100%!important; height:100%!important; min-height:0!important; aspect-ratio:auto!important;
+  position:relative!important; overflow:hidden!important; box-sizing:border-box!important;
+}
+#reportCard #previewPhotoGrid .photo-slot img,
+#reportCard #previewPhotoGrid img {
+  display:block!important; width:100%!important; height:100%!important;
+  min-width:0!important; min-height:0!important; max-width:none!important; max-height:none!important;
+  object-fit:cover!important; object-position:50% 42%!important;
+}
+/* Buttons must stay inside each thumbnail and never cover one another */
+#photoGrid .photo-slot { overflow:hidden!important; min-width:0!important; }
+#photoGrid .photo-edit-btn {
+  left:4px!important; right:4px!important; bottom:4px!important; width:calc(100% - 8px)!important;
+  max-width:calc(100% - 8px)!important; min-width:0!important; min-height:30px!important;
+  height:auto!important; padding:5px 3px!important; line-height:1.2!important;
+  white-space:normal!important; overflow-wrap:anywhere!important; z-index:5!important;
+  box-sizing:border-box!important; font-size:10px!important;
+}
+#reportCard .sig-wrap { margin-top:24px!important; padding-top:10px!important; }
+#reportCard #sigSlot { margin-bottom:10px!important; }
+@media (max-width:700px) {
+  #photoGrid .photo-edit-btn { font-size:10px!important; min-height:32px!important; }
+  #reportCard #previewPhotoGrid { right:12px!important; top:16px!important; bottom:78px!important; width:35%!important; }
+}
+/* Print layout: preserve the same single-column photo stack as the preview */
+body.print-mode #reportCard #previewPhotoGrid {
+  position:absolute!important; top:20px!important; right:20px!important; bottom:90px!important;
+  width:35%!important; height:auto!important; max-height:none!important;
+  display:grid!important; grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:repeat(4,minmax(0,1fr))!important; gap:8px!important;
+}
+body.print-mode #reportCard #previewPhotoGrid .photo-slot {
+  height:100%!important; min-height:0!important; max-height:none!important;
+}
+body.print-mode #reportCard .report-body p { font-size:14px!important; line-height:1.42!important; }
+</style>
+
 </body>
 </html>
