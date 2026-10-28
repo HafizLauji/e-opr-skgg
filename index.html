@@ -519,13 +519,18 @@ body.print-mode .report-footer {
   gap:8px!important;align-content:stretch!important;overflow:hidden!important;
 }
 #reportCard #previewPhotoGrid > div{
-  width:100%!important;height:100%!important;min-height:0!important;max-height:none!important;
+  position:relative!important;display:block!important;
+  width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;max-height:none!important;
   aspect-ratio:auto!important;overflow:hidden!important;border-radius:15px!important;
   border:2px solid #e7f2f5!important;background:#d9f0f7!important;box-sizing:border-box!important;
 }
 #reportCard #previewPhotoGrid img{
-  display:block!important;width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;
-  max-width:none!important;max-height:none!important;object-fit:cover!important;
+  display:block!important;
+  /* Penting: applyCoverTransform menggunakan dimensi imej asal (px).
+     Jangan paksa width/height 100% kerana ia membatalkan pengiraan Smart Crop. */
+  width:auto!important;height:auto!important;min-width:0!important;min-height:0!important;
+  max-width:none!important;max-height:none!important;object-fit:fill!important;
+  position:absolute!important;left:0!important;top:0!important;transform-origin:0 0!important;
 }
 #reportCard .sig-wrap{
   position:absolute!important;left:28px!important;bottom:14px!important;width:55%!important;
@@ -1233,6 +1238,34 @@ async function renderA4Canvas() {
         sigWrap.style.setProperty("padding-top", "0", "important");
         sigWrap.style.setProperty("flex", "0 0 auto", "important");
       }
+
+      // Selaraskan eksport PDF dengan template dua kolum baharu.
+      // Jangan pulangkan grid gambar kepada susun atur 2x2 lama.
+      body.style.setProperty("position", "relative", "important");
+      body.style.setProperty("display", "block", "important");
+      body.style.setProperty("height", "977px", "important");
+      body.style.setProperty("max-height", "977px", "important");
+      body.style.setProperty("min-height", "0", "important");
+      body.style.setProperty("overflow", "hidden", "important");
+      body.style.setProperty("padding", "20px 22px 12px 28px", "important");
+      grid.style.setProperty("position", "absolute", "important");
+      grid.style.setProperty("top", "20px", "important");
+      grid.style.setProperty("right", "20px", "important");
+      grid.style.setProperty("bottom", "90px", "important");
+      grid.style.setProperty("left", "auto", "important");
+      grid.style.setProperty("width", "41%", "important");
+      grid.style.setProperty("height", "auto", "important");
+      grid.style.setProperty("display", "grid", "important");
+      grid.style.setProperty("grid-template-columns", "minmax(0, 1fr)", "important");
+      grid.style.setProperty("grid-template-rows", "repeat(4, minmax(0, 1fr))", "important");
+      grid.style.setProperty("gap", "8px", "important");
+      grid.style.setProperty("margin", "0", "important");
+      grid.querySelectorAll("img").forEach(img => {
+        img.style.setProperty("width", (img.naturalWidth || img.width) + "px", "important");
+        img.style.setProperty("height", (img.naturalHeight || img.height) + "px", "important");
+        img.style.setProperty("max-width", "none", "important");
+        img.style.setProperty("max-height", "none", "important");
+      });
 
       // Semak overflow selepas semua gaya A4 digunakan. Jika tandatangan
       // atau mana-mana bahagian kandungan keluar daripada ruang badan A4,
