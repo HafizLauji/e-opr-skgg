@@ -573,12 +573,16 @@ body.print-mode .report-footer {
 .image-editor-preview{flex-shrink:0}
 .editor-actions button{min-height:38px}
 @media(max-width:700px){
-  body{overflow-x:hidden}
-  #formPanel{min-width:0!important;max-width:100%!important}
-  #formPanel input,#formPanel textarea,#formPanel select{width:100%}
-  .image-editor{width:100%;padding:14px}
-  .image-editor-preview{height:min(42vh,230px)}
-  #reportCard #previewPhotoGrid{right:20px!important;top:20px!important;bottom:55px!important;width:40%!important}
+  body:not(.print-mode){overflow-x:hidden}
+  body:not(.print-mode) #formPanel{min-width:0!important;max-width:100%!important}
+  body:not(.print-mode) #formPanel input,body:not(.print-mode) #formPanel textarea,body:not(.print-mode) #formPanel select{width:100%}
+  body:not(.print-mode) .image-editor{width:100%;padding:14px}
+  body:not(.print-mode) .image-editor-preview{height:min(42vh,230px)}
+  /* Paparan pratonton telefon: skala keseluruhan helaian A4 supaya ruangan gambar di kanan turut kelihatan. Tidak mengubah susun atur PDF. */
+  body:not(.print-mode) .preview-col{position:relative!important;overflow:hidden!important;width:100%!important;min-width:0!important}
+  body:not(.print-mode) #reportCard{transform-origin:top left!important;will-change:transform}
+  body:not(.print-mode) #reportCard #previewPhotoGrid{right:20px!important;top:20px!important;bottom:55px!important;width:40%!important}
+  body:not(.print-mode) .preview-col > .no-print-note{position:relative}
 }
 </style>
 </head>
@@ -1928,6 +1932,39 @@ if (imageZoomControl) imageZoomControl.addEventListener('input', e => {
   box.addEventListener('pointercancel',stopDrag);
   box.addEventListener('lostpointercapture',stopDrag);
 })();
+// Skala keseluruhan pratonton A4 pada telefon; PDF kekal pada ukuran asal 794 x 1123.
+(function setupMobileReportPreview(){
+  const card = document.getElementById('reportCard');
+  const col = document.querySelector('.preview-col');
+  const note = col && col.querySelector('.no-print-note');
+  if (!card || !col) return;
+  const A4_WIDTH = 794;
+  const A4_HEIGHT = 1123;
+  function fitPreviewToScreen(){
+    if (document.body.classList.contains('print-mode') || window.matchMedia('(min-width: 701px)').matches){
+      card.style.transform = '';
+      if (note) note.style.marginTop = '';
+      col.style.height = '';
+      return;
+    }
+    const availableWidth = col.clientWidth;
+    if (!availableWidth) return;
+    const scale = Math.min(1, availableWidth / A4_WIDTH);
+    card.style.transform = `scale(${scale})`;
+    // Transform tidak mengubah ruang layout asal, jadi laraskan ruang selepas kad agar tiada jurang kosong.
+    if (note) note.style.marginTop = `${-A4_HEIGHT * (1 - scale)}px`;
+    col.style.height = `${A4_HEIGHT * scale + (note ? note.offsetHeight + 10 : 0)}px`;
+  }
+  window.addEventListener('resize', fitPreviewToScreen, {passive:true});
+  window.addEventListener('orientationchange', () => requestAnimationFrame(fitPreviewToScreen), {passive:true});
+  if (window.ResizeObserver){
+    const observer = new ResizeObserver(fitPreviewToScreen);
+    observer.observe(col);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fitPreviewToScreen, {once:true});
+  requestAnimationFrame(() => requestAnimationFrame(fitPreviewToScreen));
+})();
+
 const imageEditorBackdrop = document.getElementById('imageEditorBackdrop');
 if (imageEditorBackdrop) imageEditorBackdrop.addEventListener('click', e => {
   if (e.target.id === 'imageEditorBackdrop') closeImageEditor();
