@@ -150,7 +150,23 @@
     aspect-ratio: 1; border-radius: 8px; border: 1.5px dashed; background: var(--tint, #EAF2FC);
     display: flex; align-items: center; justify-content: center; cursor: pointer;
   }
-  .photo-edit-btn { position:absolute; left:4px; bottom:4px; z-index:3; border:0; border-radius:6px; padding:4px 7px; background:rgba(13,43,78,.88); color:#fff; font-size:10px; cursor:pointer; }
+  /* Butang suntingan thumbnail: kecil, kemas dan tidak menutup imej. */
+  .photo-edit-btn {
+    position:absolute; left:auto; right:7px; bottom:7px; z-index:5;
+    display:inline-flex; align-items:center; justify-content:center; gap:4px;
+    width:auto; min-width:58px; max-width:calc(100% - 14px);
+    height:27px; min-height:27px; padding:0 9px;
+    border:1px solid rgba(255,255,255,.82); border-radius:999px;
+    background:rgba(255,255,255,.95); color:#17436d;
+    box-shadow:0 2px 8px rgba(10,31,55,.22);
+    -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px);
+    font-family:'Libre Franklin',sans-serif; font-size:10px; font-weight:800;
+    line-height:1; white-space:nowrap; cursor:pointer;
+    transition:background .16s ease, transform .16s ease, box-shadow .16s ease;
+  }
+  .photo-edit-btn:hover { background:#fff; box-shadow:0 3px 10px rgba(10,31,55,.28); transform:translateY(-1px); }
+  .photo-edit-btn:active { transform:scale(.96); }
+  .photo-edit-btn:focus-visible { outline:2px solid #1568C4; outline-offset:2px; }
   .image-editor-backdrop { position:fixed; inset:0; z-index:9999; background:rgba(8,20,35,.58); display:none; align-items:center; justify-content:center; padding:16px; }
   .image-editor { width:min(440px,100%); background:#fff; border-radius:16px; padding:18px; box-shadow:0 18px 60px rgba(0,0,0,.25); }
   .image-editor-preview { width:100%; height:230px; background:#eef1f5; border-radius:10px; overflow:hidden; position:relative; margin:12px 0; touch-action:none; cursor:grab; }
@@ -564,9 +580,12 @@ body.print-mode .report-footer {
 #formPanel textarea{resize:vertical;min-height:88px;overflow-anchor:none}
 #photoGrid .photo-slot{position:relative!important;overflow:hidden!important;min-width:0!important}
 #photoGrid .photo-edit-btn{
-  left:4px!important;right:4px!important;bottom:4px!important;width:auto!important;max-width:none!important;min-width:0!important;
-  min-height:32px!important;height:auto!important;padding:5px 3px!important;font-size:10px!important;line-height:1.15!important;
-  white-space:normal!important;overflow-wrap:anywhere!important;z-index:5!important;box-sizing:border-box!important;
+  left:auto!important;right:7px!important;bottom:7px!important;
+  width:auto!important;min-width:58px!important;max-width:calc(100% - 14px)!important;
+  height:27px!important;min-height:27px!important;padding:0 9px!important;
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
+  border-radius:999px!important;box-sizing:border-box!important;
 }
 .image-editor{box-sizing:border-box;max-height:calc(100dvh - 24px);overflow-y:auto}
 .image-editor-backdrop{overflow-y:auto;align-items:center}
