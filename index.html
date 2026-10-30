@@ -349,7 +349,7 @@
   }
 
 
-/* V13.5 FIX: grid foto borang diselaraskan dengan tinggi slot sebenar.
+/* V13.6 FIX: grid foto borang diselaraskan dengan tinggi slot sebenar.
    2 baris x 103px + gap 8px = 214px; tiada lagi baris bawah terpotong. */
 #photoGrid.photo-grid{
   display:grid!important;
@@ -1924,7 +1924,18 @@ document.addEventListener('DOMContentLoaded', applySmartCropToAllPhotos);
 window.addEventListener("resize", function(){
   document.querySelectorAll('#previewPhotoGrid img').forEach(function(img){
     if (img.dataset.cropX && img.dataset.cropY) {
-      applyCoverTransform(img, img.parentElement, parseFloat(img.dataset.cropX), parseFloat(img.dataset.cropY));
+      // Kekalkan zum dan titik fokus asal apabila pratonton telefon berubah saiz/orientasi.
+      // Sebelum ini parameter zoom tertinggal di sini, lalu pratonton kembali ke 100%
+      // sedangkan eksport PDF masih membaca nilai zoom daripada dataset.
+      applyCoverTransform(
+        img,
+        img.parentElement,
+        parseFloat(img.dataset.cropX),
+        parseFloat(img.dataset.cropY),
+        Number(img.dataset.sourceWidth) || img.naturalWidth || img.width,
+        Number(img.dataset.sourceHeight) || img.naturalHeight || img.height,
+        Number(img.parentElement.dataset.zoom || img.dataset.zoom) || 1
+      );
     } else {
       applySmartCrop(img);
     }
@@ -2012,7 +2023,25 @@ function resetEditedPhoto(){
 function saveImageEditor(){
   if(editingPhotoIndex<0||!editorDraft)return;
   photoEdits[editingPhotoIndex]={...editorDraft};
+  const savedIndex = editingPhotoIndex;
   renderPreviewPhotos();
+  // Pastikan crop/zum dipasang semula selepas slot baharu selesai mendapat saiz sebenar.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const cell = document.querySelectorAll("#previewPhotoGrid > div")[savedIndex];
+    const img = cell && cell.querySelector("img");
+    const edit = photoEdits[savedIndex];
+    if (img && edit && img.complete && img.naturalWidth) {
+      cell.dataset.zoom = edit.zoom || 1;
+      applyCoverTransform(
+        img, cell,
+        edit.x == null ? 0.5 : edit.x,
+        edit.y == null ? 0.5 : edit.y,
+        img.naturalWidth, img.naturalHeight,
+        edit.zoom || 1
+      );
+    }
+  }));
+  if (typeof scheduleDraftSave === "function") scheduleDraftSave();
   closeImageEditor();
 }
 const imageZoomControl = document.getElementById('imageZoom');
